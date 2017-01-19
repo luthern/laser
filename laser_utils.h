@@ -8,8 +8,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <pbc/pbc.h>
-#include <pbc/pbc_test.h>
+#include <pbc.h>
+#include <pbc_test.h>
 #include <openssl/sha.h>
 #include <string.h>
 #include <time.h>

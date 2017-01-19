@@ -128,29 +128,29 @@ TPM_RC createMemKeyP1(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -169,8 +169,8 @@ TPM_RC createMemKeyP1(
 	}
 	/* Copy out the output I */
 	if (rc == 0) {
-		memcpy(I_x, createPrimaryOut.outPublic.t.publicArea.unique.ecc.x.t.buffer, 32);
-		memcpy(I_y, createPrimaryOut.outPublic.t.publicArea.unique.ecc.y.t.buffer, 32);
+		memcpy(I_x, createPrimaryOut.outPublic.publicArea.unique.ecc.x.t.buffer, 32);
+		memcpy(I_y, createPrimaryOut.outPublic.publicArea.unique.ecc.y.t.buffer, 32);
 	}
 	/* Flush the primary key */
 	if (rc == 0) {
@@ -275,29 +275,29 @@ TPM_RC createMemKeyP2(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -314,11 +314,11 @@ TPM_RC createMemKeyP2(
 	/* input the point h1 and configure options for TPM2_Commit */
 	if (rc == 0) {
 		commitIn.signHandle = createPrimaryOut.objectHandle;
-		commitIn.P1.t.size = 32 + 32 + 2 + 2;
-		commitIn.P1.t.point.x.t.size = 32;
-		commitIn.P1.t.point.y.t.size = 32;
-		memcpy(commitIn.P1.t.point.x.t.buffer, h1_x, 32);
-		memcpy(commitIn.P1.t.point.y.t.buffer, h1_y, 32);
+		commitIn.P1.size = 32 + 32 + 2 + 2;
+		commitIn.P1.point.x.t.size = 32;
+		commitIn.P1.point.y.t.size = 32;
+		memcpy(commitIn.P1.point.x.t.buffer, h1_x, 32);
+		memcpy(commitIn.P1.point.y.t.buffer, h1_y, 32);
 		commitIn.s2.t.size = 0;
 		commitIn.y2.t.size = 0;
 	}
@@ -337,7 +337,7 @@ TPM_RC createMemKeyP2(
 	}
 	/* Copy out Rm */ 
 	if (rc == 0) {
-		Rm = commitOut.E.t.point;
+		Rm = commitOut.E.point;
 		memcpy(Rm_x, Rm.x.t.buffer, Rm.x.t.size);
 		memcpy(Rm_y, Rm.y.t.buffer, Rm.y.t.size);
 		*commit_cntr = commitOut.counter;
@@ -449,29 +449,29 @@ TPM_RC createMemKeyP3(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -635,29 +635,29 @@ TPM_RC getSignKeyP1(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -674,11 +674,11 @@ TPM_RC getSignKeyP1(
 	/* input the point h1 and configure options for TPM2_Commit */
 	if (rc == 0) {
 		commitIn.signHandle = createPrimaryOut.objectHandle;
-		commitIn.P1.t.size = 32 + 32 + 2 + 2;
-		commitIn.P1.t.point.x.t.size = 32;
-		commitIn.P1.t.point.y.t.size = 32;
-		memcpy(commitIn.P1.t.point.x.t.buffer, h1_x, 32);
-		memcpy(commitIn.P1.t.point.y.t.buffer, h1_y, 32);
+		commitIn.P1.size = 32 + 32 + 2 + 2;
+		commitIn.P1.point.x.t.size = 32;
+		commitIn.P1.point.y.t.size = 32;
+		memcpy(commitIn.P1.point.x.t.buffer, h1_x, 32);
+		memcpy(commitIn.P1.point.y.t.buffer, h1_y, 32);
 		commitIn.s2.t.size = 32;
 		memcpy(commitIn.s2.t.buffer, bj, 32);
 		commitIn.y2.t.size = 32;
@@ -699,12 +699,12 @@ TPM_RC getSignKeyP1(
 	}
 	/* Output */
 	if (rc == 0) {	
-		memcpy(Ej_x, commitOut.K.t.point.x.t.buffer, 32);
-		memcpy(Ej_y, commitOut.K.t.point.y.t.buffer, 32);
-		memcpy(S10_x, commitOut.L.t.point.x.t.buffer, 32);
-		memcpy(S10_y, commitOut.L.t.point.y.t.buffer, 32);
-		memcpy(S20_x, commitOut.E.t.point.x.t.buffer, 32);
-		memcpy(S20_y, commitOut.E.t.point.y.t.buffer, 32);
+		memcpy(Ej_x, commitOut.K.point.x.t.buffer, 32);
+		memcpy(Ej_y, commitOut.K.point.y.t.buffer, 32);
+		memcpy(S10_x, commitOut.L.point.x.t.buffer, 32);
+		memcpy(S10_y, commitOut.L.point.y.t.buffer, 32);
+		memcpy(S20_x, commitOut.E.point.x.t.buffer, 32);
+		memcpy(S20_y, commitOut.E.point.y.t.buffer, 32);
 		*cntr = commitOut.counter;
 	}
 	/* Flush the primary key */
@@ -811,29 +811,29 @@ TPM_RC getSignKeyP2(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -995,29 +995,29 @@ TPM_RC getSignKeyP3(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -1034,11 +1034,11 @@ TPM_RC getSignKeyP3(
 	/* input the point h1 and configure options for TPM2_Commit */
 	if (rc == 0) {
 		commitIn.signHandle = createPrimaryOut.objectHandle;
-		commitIn.P1.t.size = 32 + 32 + 2 + 2;
-		commitIn.P1.t.point.x.t.size = 32;
-		commitIn.P1.t.point.y.t.size = 32;
-		memcpy(commitIn.P1.t.point.x.t.buffer, Dj_x, 32);
-		memcpy(commitIn.P1.t.point.y.t.buffer, Dj_y, 32);
+		commitIn.P1.size = 32 + 32 + 2 + 2;
+		commitIn.P1.point.x.t.size = 32;
+		commitIn.P1.point.y.t.size = 32;
+		memcpy(commitIn.P1.point.x.t.buffer, Dj_x, 32);
+		memcpy(commitIn.P1.point.y.t.buffer, Dj_y, 32);
 		commitIn.s2.t.size = 32;
 		memcpy(commitIn.s2.t.buffer, bi, 32);
 		commitIn.y2.t.size = 32;
@@ -1059,12 +1059,12 @@ TPM_RC getSignKeyP3(
 	}
 	/* Output */
 	if (rc == 0) {	
-		memcpy(Oi_x, commitOut.K.t.point.x.t.buffer, 32);
-		memcpy(Oi_y, commitOut.K.t.point.y.t.buffer, 32);
-		memcpy(S1i_x, commitOut.L.t.point.x.t.buffer, 32);
-		memcpy(S1i_y, commitOut.L.t.point.y.t.buffer, 32);
-		memcpy(S2i_x, commitOut.E.t.point.x.t.buffer, 32);
-		memcpy(S2i_y, commitOut.E.t.point.y.t.buffer, 32);
+		memcpy(Oi_x, commitOut.K.point.x.t.buffer, 32);
+		memcpy(Oi_y, commitOut.K.point.y.t.buffer, 32);
+		memcpy(S1i_x, commitOut.L.point.x.t.buffer, 32);
+		memcpy(S1i_y, commitOut.L.point.y.t.buffer, 32);
+		memcpy(S2i_x, commitOut.E.point.x.t.buffer, 32);
+		memcpy(S2i_y, commitOut.E.point.y.t.buffer, 32);
 		*cntr = commitOut.counter;
 	}
 	/* Flush the primary key */
@@ -1172,29 +1172,29 @@ TPM_RC getSignKeyP4(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -1359,29 +1359,29 @@ TPM_RC signP1(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -1398,11 +1398,11 @@ TPM_RC signP1(
 	/* input the point h1 and configure options for TPM2_Commit */
 	if (rc == 0) {
 		commitIn.signHandle = createPrimaryOut.objectHandle;
-		commitIn.P1.t.size = 32 + 32 + 2 + 2;
-		commitIn.P1.t.point.x.t.size = 32;
-		commitIn.P1.t.point.y.t.size = 32;
-		memcpy(commitIn.P1.t.point.x.t.buffer, h1_x, 32);
-		memcpy(commitIn.P1.t.point.y.t.buffer, h1_y, 32);
+		commitIn.P1.size = 32 + 32 + 2 + 2;
+		commitIn.P1.point.x.t.size = 32;
+		commitIn.P1.point.y.t.size = 32;
+		memcpy(commitIn.P1.point.x.t.buffer, h1_x, 32);
+		memcpy(commitIn.P1.point.y.t.buffer, h1_y, 32);
 		commitIn.s2.t.size = 32;
 		memcpy(commitIn.s2.t.buffer, xjk, 32);
 		commitIn.y2.t.size = 32;
@@ -1423,12 +1423,12 @@ TPM_RC signP1(
 	}
 	/* Output */
 	if (rc == 0) {	
-		memcpy(E_x, commitOut.K.t.point.x.t.buffer, 32);
-		memcpy(E_y, commitOut.K.t.point.y.t.buffer, 32);
-		memcpy(S1s_x, commitOut.L.t.point.x.t.buffer, 32);
-		memcpy(S1s_y, commitOut.L.t.point.y.t.buffer, 32);
-		memcpy(S2s_x, commitOut.E.t.point.x.t.buffer, 32);
-		memcpy(S2s_y, commitOut.E.t.point.y.t.buffer, 32);
+		memcpy(E_x, commitOut.K.point.x.t.buffer, 32);
+		memcpy(E_y, commitOut.K.point.y.t.buffer, 32);
+		memcpy(S1s_x, commitOut.L.point.x.t.buffer, 32);
+		memcpy(S1s_y, commitOut.L.point.y.t.buffer, 32);
+		memcpy(S2s_x, commitOut.E.point.x.t.buffer, 32);
+		memcpy(S2s_y, commitOut.E.point.y.t.buffer, 32);
 		*cntr = commitOut.counter;
 	}
 	/* Flush the primary key */
@@ -1539,29 +1539,29 @@ TPM_RC signP2(
 	/* Create the primary key from the DAASeed */
 	if (rc == 0) {
 		createPrimaryIn.primaryHandle = primaryHandle;
-		createPrimaryIn.inSensitive.t.sensitive.data.t.size = 0;
-		createPrimaryIn.inSensitive.t.sensitive.userAuth.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.type = TPM_ALG_ECC;
-		createPrimaryIn.inPublic.t.publicArea.nameAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val = 0;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
-		createPrimaryIn.inPublic.t.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
-		createPrimaryIn.inPublic.t.publicArea.authPolicy.t.size = 0;	/* empty policy */
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.x.t.size = 0;
-		createPrimaryIn.inPublic.t.publicArea.unique.ecc.y.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.data.t.size = 0;
+		createPrimaryIn.inSensitive.sensitive.userAuth.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.type = TPM_ALG_ECC;
+		createPrimaryIn.inPublic.publicArea.nameAlg = halg;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val = 0;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDTPM;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_FIXEDPARENT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SENSITIVEDATAORIGIN;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_USERWITHAUTH;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_ADMINWITHPOLICY;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_NODA;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_RESTRICTED;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val &= ~TPMA_OBJECT_DECRYPT;
+		createPrimaryIn.inPublic.publicArea.objectAttributes.val |= TPMA_OBJECT_SIGN;
+		createPrimaryIn.inPublic.publicArea.authPolicy.t.size = 0;	/* empty policy */
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.symmetric.algorithm = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.scheme = TPM_ALG_ECDAA;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.curveID = TPM_ECC_BN_P256;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.scheme = TPM_ALG_NULL;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.kdf.details.mgf1.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}

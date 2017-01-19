@@ -11,8 +11,9 @@
 #include <tss2/Unmarshal_fp.h>
 #include <tss2/tssresponsecode.h>
 #include <tss2/tsscrypto.h>
-#include <pbc/pbc.h>
-#include <pbc/pbc_test.h>
+#include <tss2/tsscryptoh.h>
+#include <pbc.h>
+#include <pbc_test.h>
 #include <openssl/sha.h>
 
 TPM_RC initTPM(void);
