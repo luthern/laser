@@ -213,11 +213,11 @@ int main(int argc, char *argv[])
 	int it_counter = 0;
 	while (it_counter < iterations) {
 		it_counter++;
-		rc = initTPM();
-		if (rc != 0) {
-			perror("initTPM failed");
-			exit(1);
-		}
+		//rc = initTPM();
+		//if (rc != 0) {
+		//	perror("initTPM failed");
+		//	exit(1);
+		//}
 
 		// KeyGen recv data
 		memset(buffer, 0, sizeof(buffer));
@@ -318,6 +318,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 		tpm += *time_taken;
+		printf("TPM2_CreatePrimary time: %.2fms\n", *time_taken * 1000);
 		unsigned char I_buf[64];
 		memcpy(I_buf, I_x, 32);
 		memcpy(I_buf + 32, I_y, 32);

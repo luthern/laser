@@ -29,16 +29,17 @@ TSS_HEADERS += 						\
 PBC_HEADERS += 	$(wildcard $(PBCDIR)*.h)
 	       
 ALL = 		laser_platform \
-      		laser_issuer
+      		laser_issuer  
 
 all:	$(ALL)
 
 CONSISTENT = 	laser_tpm.h 	\
-	     	laser_tpm.c 	\
+	     	laser_hw_tpm.c 	\
 	     	laser_utils.h
 
 laser_platform:		laser_platform.c
 			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_platform.c $(LNALIBS) -o laser_platform $(LIBS)
 laser_issuer: 		laser_issuer.c
 			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_issuer.c $(LNALIBS) -o laser_issuer $(LIBS)
-
+laser_keygen_test:	laser_keygen_test.c
+			$(CC) $(CFLAGS) $(LNFLAGS) laser_tpm.h laser_keygen_test.c $(LNALIBS) -o laser_keygen_test $(LIBS)
