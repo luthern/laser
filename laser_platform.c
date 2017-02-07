@@ -384,7 +384,7 @@ int main(int argc, char *argv[])
 		unsigned char sf_buf[32];
 		unsigned char ct_buf[32];
 		element_to_bytes(ct_buf, ct);
-		rc = createMemKeyP3(nmm, *commit_cntr, ct_buf, c_buf, sf_buf, time_taken);
+		rc = createMemKeyP3(*commit_cntr, nmm, ct_buf, c_buf, sf_buf, time_taken);
 		if (rc != 0) {
 			perror("createMemKeyP3 failed");
 			exit(1);

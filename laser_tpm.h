@@ -27,12 +27,12 @@ TPM_RC createMemKeyP2(
 			unsigned char *h1_y,
 			unsigned char *Rm_x,
 			unsigned char *Rm_y,
-			uint16_t *commit_cntr,
+			uint16_t *cntr,
 			double *time_taken
 		   );
 TPM_RC createMemKeyP3(
+			uint16_t cntr,
 			uint32_t nonce,
-			uint16_t commit_cntr,
 			unsigned char *chm,
 			unsigned char *ctm,
 			unsigned char *sfm,
@@ -104,5 +104,29 @@ TPM_RC signP2(
 			uint32_t M_len,
 			unsigned char *sfs,
 			unsigned char *cts,
-			double * time_taken
+			double *time_taken
 	     );
+TPM_RC commit_helper(
+			unsigned char *P1_x, 
+			unsigned char *P1_y,
+			unsigned char *s2,
+			unsigned char *y2,
+			unsigned char *K_x,
+			unsigned char *K_y,
+			unsigned char *L_x,
+			unsigned char *L_y,
+			unsigned char *E_x,
+			unsigned char *E_y,
+			uint16_t *cntr,
+			double *time_taken
+		    );
+TPM_RC sign_helper(
+			uint16_t cntr,
+			uint32_t nonce,
+			unsigned char *hash,
+			char *msg,
+			uint32_t msg_len,
+			unsigned char *r,
+			unsigned char *s,
+			double *time_taken
+		  );
