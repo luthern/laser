@@ -130,3 +130,4 @@ TPM_RC sign_helper(
 			unsigned char *s,
 			double *time_taken
 		  );
+TPM_RC flush_handles(void);

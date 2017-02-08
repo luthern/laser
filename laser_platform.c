@@ -1392,6 +1392,7 @@ int main(int argc, char *argv[])
 	pairing_clear(pairing);
 
 	free(time_taken);
+	flush_handles();
 	return 0;
 }
 
