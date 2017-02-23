@@ -26,7 +26,6 @@ TPM_RC commit_helper(
 	/* Table 50 - TPMI_RH_HIERARCHY primaryHandle */
 	Commit_In			commitIn;
 	Commit_Out			commitOut;
-	TPMI_ALG_HASH			halg = TPM_ALG_SHA256;
 
 	/* input the point h1 and configure options for TPM2_Commit */
 	if (rc == 0) {
@@ -227,6 +226,19 @@ TPM_RC createMemKeyP1(
 		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
 		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
 		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
+
+		//unsigned char onebuf[32] = {0x00};
+		//onebuf[31] = 0x01;
+		//unsigned char twobuf[32] = {0x00};
+		//twobuf[31] = 0x02;
+		/* It appears to make no difference if I set publicArea.unique.ecc or not... */
+		/*
+		unsigned char onebuf[32] = {0xf9,0x60,0xa1,0x77,0xf4,0xbc,0x4c,0xe6,0xdf,0x76,0x99,0xce,0xb8,0xfa,0x74,0x47,0x3a,0xa5,0xad,0xad,0x4b,0x49,0xd9,0xdf,0xb7,0x14,0x35,0x7c,0x21,0x9e,0xb6,0x0c};
+		unsigned char twobuf[32] = {0xe0,0x54,0xcf,0x38,0x1e,0x5e,0xeb,0x78,0x5b,0x3e,0xf6,0x83,0x05,0x49,0xe4,0x74,0x93,0x5e,0x19,0xa7,0xda,0x46,0x00,0x8a,0xd1,0xa4,0x4c,0xc0,0xf6,0x94,0xf7,0x50};
+		memcpy(createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.buffer, onebuf, 32);
+		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 32;
+		memcpy(createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.buffer, twobuf, 32);
+		*/
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}

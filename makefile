@@ -5,7 +5,7 @@ PBCDIR = /usr/local/include/pbc/
 PBCLIBDIR = /usr/local/lib/
 CFLAGS = 	-DTPM_POSIX \
 		-I$(TSSDIR) -I$(TSSDIR)tss2/ -I$(PBCDIR) -DTPM_TSS \
-		-DTPM_INTERFACE_TYPE_DEFAULT="\"dev\""
+		-DTPM_INTERFACE_TYPE_DEFAULT="\"dev\"" -Wall
 LNFLAGS = 	-DTPM_POSIX		\
 		-L$(TSSDIR)		\
 		-L$(PBCLIBDIR)
@@ -29,7 +29,8 @@ TSS_HEADERS += 						\
 PBC_HEADERS += 	$(wildcard $(PBCDIR)*.h)
 	       
 ALL = 		laser_platform \
-      		laser_issuer  
+      		laser_issuer \
+		laser_ccs_tpm
 
 all:	$(ALL)
 
@@ -41,5 +42,5 @@ laser_platform:		laser_platform.c
 			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_platform.c $(LNALIBS) -o laser_platform $(LIBS)
 laser_issuer: 		laser_issuer.c
 			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_issuer.c $(LNALIBS) -o laser_issuer $(LIBS)
-laser_keygen_test:	laser_keygen_test.c
-			$(CC) $(CFLAGS) $(LNFLAGS) laser_tpm.h laser_keygen_test.c $(LNALIBS) -o laser_keygen_test $(LIBS)
+laser_ccs_tpm:		laser_ccs_tpm.c
+			$(CC) $(CFLAGS) $(LNFLAGS) laser.h laser_ccs_tpm.c laser_tpm.h laser_hw_tpm.c $(LNALIBS) -o laser_ccs_tpm $(LIBS)
