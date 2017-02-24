@@ -49,3 +49,43 @@ struct membershipCredential {
 	element_t z;
 	element_t rho;
 };
+
+struct aliasCredential {
+	element_t Ajk;
+	element_t xjk;
+	element_t yjk;
+};
+
+/* Signing credential is simply a list of ma aliasCredentials */
+struct signingCredential {
+	uint32_t entries;
+	struct aliasCredential *aliasTokenList;
+};
+
+struct revocationListEntry {
+	element_t a2i;
+	element_t b2i;
+	element_t Ki;
+};
+
+struct basenameRevocationList {
+	uint32_t entries;
+	struct revocationListEntry *revokedBasenameList;
+};
+
+struct laserSignature {
+	element_t xjk;
+	element_t t2;
+	element_t d2;
+	element_t E;
+	element_t T1;
+	element_t T2;
+	element_t T3;
+	uint32_t nts;
+	element_t cts;
+	element_t sfs;
+	element_t sdelta;
+	element_t smu;
+	element_t sv;
+	element_t spsi;
+};
