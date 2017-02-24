@@ -83,6 +83,38 @@ void Hash2(element_t z, element_t B, element_t K, element_t L, element_t Uo,
 	element_from_hash(z, obuf, 32);
 }
 
+int setupLaser(element_t issuerSecret, struct groupPublicKey *gpk)
+{
+	element_random(issuerSecret);
+
+	element_init_G1(gpk->g1, pairing);
+	element_init_G2(gpk->g2, pairing);
+	element_init_G1(gpk->h1, pairing);
+	element_init_G1(gpk->h2, pairing);
+	element_init_G1(gpk->chi, pairing);
+	element_init_G2(gpk->omega, pairing);
+
+	// initialize gpk entries
+	element_random(gpk->g1);
+	element_random(gpk->g2);
+
+	unsigned char h1x[32] = {0x00};
+	unsigned char h1y[32] = {0x00};
+	unsigned char h1_buf[64];
+	h1x[31] = 0x01;
+	h1y[31] = 0x02;
+	memcpy(h1_buf, h1x, 32);
+	memcpy(h1_buf + 32, h1y, 32);
+
+	element_from_bytes_compressed(gpk->h1, h1_buf);
+	element_random(gpk->h2);
+
+	element_pow_zn(gpk->chi, gpk->g1, issuerSecret);
+	element_pow_zn(gpk->omega, gpk->g2, issuerSecret);
+
+	return 0;
+}
+
 TPM_RC createMemKeyHost(struct groupPublicKey * const gpk, uint32_t nim, 
 		element_t pubTPM, uint32_t *ntm, element_t ctm,
 		element_t sfm)
@@ -144,12 +176,10 @@ TPM_RC createMemKeyHost(struct groupPublicKey * const gpk, uint32_t nim,
 		return rc;
 	}
 	element_from_bytes(Rm, Rm_buf);
-	element_printf("Rm: %B\n", Rm);
 	tpm += *time_taken;
 
 	/* createMemKeyP3 4(b) */
 	Hash1(pubTPM, Rm, chm);
-	element_printf("chm: %B\n", chm);
 	/* createMemKeyP3 */
 
 	unsigned char ctm_buf[32];
@@ -180,38 +210,6 @@ TPM_RC createMemKeyHost(struct groupPublicKey * const gpk, uint32_t nim,
 	return 0;
 }
 
-int setupLaser(element_t issuerSecret, struct groupPublicKey *gpk)
-{
-	element_random(issuerSecret);
-
-	element_init_G1(gpk->g1, pairing);
-	element_init_G2(gpk->g2, pairing);
-	element_init_G1(gpk->h1, pairing);
-	element_init_G1(gpk->h2, pairing);
-	element_init_G1(gpk->chi, pairing);
-	element_init_G2(gpk->omega, pairing);
-
-	// initialize gpk entries
-	element_random(gpk->g1);
-	element_random(gpk->g2);
-
-	unsigned char h1x[32] = {0x00};
-	unsigned char h1y[32] = {0x00};
-	unsigned char h1_buf[64];
-	h1x[31] = 0x01;
-	h1y[31] = 0x02;
-	memcpy(h1_buf, h1x, 32);
-	memcpy(h1_buf + 32, h1y, 32);
-
-	element_from_bytes_compressed(gpk->h1, h1_buf);
-	element_random(gpk->h2);
-
-	element_pow_zn(gpk->chi, gpk->g1, issuerSecret);
-	element_pow_zn(gpk->omega, gpk->g2, issuerSecret);
-
-	return 0;
-}
-
 int createMemKeyIssuer(struct groupPublicKey * const gpk, element_t issuerSecret, uint32_t nim,
 		element_t pubTPM, uint32_t ntm, element_t ctm, element_t sfm,
 		struct membershipCredential * memCre)
@@ -230,9 +228,7 @@ int createMemKeyIssuer(struct groupPublicKey * const gpk, element_t issuerSecret
 
 	element_neg(temp, ctm);
 	element_pow2_zn(Rm_hat, gpk->h1, sfm, pubTPM, temp);
-	element_printf("Rm_hat: %B\n", Rm_hat);
 	Hash1(pubTPM, Rm_hat, chm_hat);	
-	element_printf("chm_hat: %B\n", chm_hat);
 
 	element_to_bytes(buffer, chm_hat);
 	memcpy(buffer + 32, &ntm, sizeof(uint32_t));
@@ -273,6 +269,14 @@ int createMemKeyIssuer(struct groupPublicKey * const gpk, element_t issuerSecret
 
 	return 0;
 }
+
+int getSignCredentialHost(element_t pubTPM, struct groupPublicKey *gpk, 
+		struct membershipCredential *memCre, TODO: TYPE baseRL)
+{
+	return 0;
+}
+
+int getSignCredentialIssuer
 
 void clearKeyMaterial(element_t pubTPM, element_t issuerSecret, 
 		struct groupPublicKey *gpk, struct membershipCredential * memCre)
@@ -377,30 +381,15 @@ int main()
 	element_clear(sfm);
 	free(ntm);
 
+	/* Membership credential obtained, next getSignCredential */
+	
+
 	// clear all the structures and key material, flush handles in TPM
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);	
 	pairing_clear(pairing);
 	fclose(fp);
 	return 0;
 		
-	/*
-	element_neg(tmpr, ct);
-	element_pow2_zn(Rmb, h1, sf, I, tmpr);
-
-	Hash1(I, Rmb, cj);
-
-	memset(ibuf, 0, sizeof ibuf);
-	memset(jbuf, 0, sizeof jbuf);
-	j = element_to_bytes(ibuf, cj);
-	memcpy(ibuf + lz, &nt, 32);
-	SHA256(ibuf, strlen((char *)ibuf), obuf);
-	element_from_hash(cq, obuf, 32);
-
-	if (element_cmp(ct, cq))
-		printf("GetMemKey 5(b) verification not passed! :( \n");
-	else 
-		printf("5(b) verified\n");
-	*/
 	/*
 	element_init_G1(hm, pairing);
 	element_init_G1(hs, pairing);
@@ -510,29 +499,7 @@ int main()
 
 	element_set1(one);
 	*/
-
-
 	/*
-	element_random(z);
-	element_random(rho);
-	element_add(tmpr, gamma, z);
-	element_invert(tmpr, tmpr);
-	element_pow_zn(tmp1, h2, rho);
-	element_mul(tmp11, g1, I);
-	element_mul(J, tmp1, tmp11);
-	element_pow_zn(J, J, tmpr);
-	// send (J, z, rho) to host
-
-	// HOST outputs 'memCre' = (J, z, rho)
-
-	printf("\tTPM, time elapsed %.2fms\n", tpm * 1000);
-	printf("\tHost, time elapsed %.2fms\n", host * 1000);
-	printf("\tIssuer, time elapsed %.2fms\n\n", iss * 1000);
-
-	tpm = 0;
-	host = 0;
-	iss = 0;
-
 	// GetSignKey -----------------------------------
 	printf("GetSignKey : \n");
 
