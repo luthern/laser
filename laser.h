@@ -88,17 +88,35 @@ struct registry {
 
 struct laserSignature {
 	element_t xjk;
-	element_t t2;
-	element_t d2;
-	element_t E;
+	element_t a2s;
+	element_t b2s;
+	element_t Ks;
 	element_t T1;
 	element_t T2;
 	element_t T3;
 	uint32_t nts;
 	element_t cts;
 	element_t sfs;
+	element_t sz;
 	element_t sdelta;
 	element_t smu;
 	element_t sv;
-	element_t spsi;
+};
+
+struct signatureSigma0 {
+	element_t a2j;
+	element_t b2j;
+	element_t Kj;
+	element_t L;
+	element_t U1;
+	element_t U2;
+	element_t U3;
+	uint32_t nt0;
+	element_t ct0;
+	element_t sfg;
+	element_t sy;
+	element_t st;
+	element_t stheta;
+	element_t sxi;
+	element_t snu;
 };
