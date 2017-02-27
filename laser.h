@@ -73,6 +73,19 @@ struct basenameRevocationList {
 	struct revocationListEntry *revokedBasenameList;
 };
 
+struct registryEntry {
+	element_t a2j;
+	element_t b2j;
+	element_t Kj;
+	uint32_t num_alias_tokens;
+	element_t *alias_tokens;
+};
+
+struct registry {
+	uint32_t entries;
+	struct registeryEntry *registryEntries;
+};
+
 struct laserSignature {
 	element_t xjk;
 	element_t t2;

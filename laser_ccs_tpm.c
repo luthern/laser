@@ -271,12 +271,18 @@ int createMemKeyIssuer(struct groupPublicKey * const gpk, element_t issuerSecret
 }
 
 int getSignCredentialHost(element_t pubTPM, struct groupPublicKey *gpk, 
-		struct membershipCredential *memCre, TODO: TYPE baseRL)
+		struct membershipCredential *memCre, 
+		struct basenameRevocationList *baseRL)
 {
+	
 	return 0;
 }
 
-int getSignCredentialIssuer
+int getSignCredentialIssuer(element_t issuerSecret, struct groupPublicKey *gpk, 
+		struct basenameRevocationList *baseRL, struct registry *reg)
+{
+	return 0;
+}
 
 void clearKeyMaterial(element_t pubTPM, element_t issuerSecret, 
 		struct groupPublicKey *gpk, struct membershipCredential * memCre)
