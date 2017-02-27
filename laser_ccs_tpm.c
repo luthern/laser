@@ -91,7 +91,7 @@ int setupLaser(element_t issuerSecret, struct groupPublicKey *gpk)
 	element_init_G2(gpk->g2, pairing);
 	element_init_G1(gpk->h1, pairing);
 	element_init_G1(gpk->h2, pairing);
-	element_init_G1(gpk->chi, pairing);
+	element_init_G1(gpk->h3, pairing);
 	element_init_G2(gpk->omega, pairing);
 
 	// initialize gpk entries
@@ -108,14 +108,13 @@ int setupLaser(element_t issuerSecret, struct groupPublicKey *gpk)
 
 	element_from_bytes_compressed(gpk->h1, h1_buf);
 	element_random(gpk->h2);
-
-	element_pow_zn(gpk->chi, gpk->g1, issuerSecret);
+	element_random(gpk->h3);
 	element_pow_zn(gpk->omega, gpk->g2, issuerSecret);
 
 	return 0;
 }
 
-TPM_RC createMemKeyHost(struct groupPublicKey * const gpk, uint32_t nim, 
+TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nim, 
 		element_t pubTPM, uint32_t *ntm, element_t ctm,
 		element_t sfm)
 {
@@ -210,7 +209,7 @@ TPM_RC createMemKeyHost(struct groupPublicKey * const gpk, uint32_t nim,
 	return 0;
 }
 
-int createMemKeyIssuer(struct groupPublicKey * const gpk, element_t issuerSecret, uint32_t nim,
+int joinIssuer(struct groupPublicKey * const gpk, element_t issuerSecret, uint32_t nim,
 		element_t pubTPM, uint32_t ntm, element_t ctm, element_t sfm,
 		struct membershipCredential * memCre)
 {
@@ -248,17 +247,17 @@ int createMemKeyIssuer(struct groupPublicKey * const gpk, element_t issuerSecret
 
 	/* Setup memCre */
 	element_init_G1(memCre->J, pairing);
-	element_init_Zr(memCre->z, pairing);
-	element_init_Zr(memCre->rho, pairing);
-	element_random(memCre->z);
-	element_random(memCre->rho);
+	element_init_Zr(memCre->t, pairing);
+	element_init_Zr(memCre->d, pairing);
+	element_random(memCre->t);
+	element_random(memCre->d);
 
 	element_t exponent;
 	element_init_Zr(exponent, pairing);
 	
-	element_add(exponent, issuerSecret, memCre->z);
+	element_add(exponent, issuerSecret, memCre->t);
 	element_invert(exponent, exponent);
-	element_pow_zn(temp, gpk->h2, memCre->rho);
+	element_pow_zn(temp, gpk->h2, memCre->d);
 	element_mul(temp, pubTPM, temp);
 	element_mul(temp, gpk->g1, temp);
 	element_pow_zn(memCre->J, temp, exponent);
@@ -294,13 +293,13 @@ void clearKeyMaterial(element_t pubTPM, element_t issuerSecret,
 	element_clear(gpk->g2);
 	element_clear(gpk->h1);
 	element_clear(gpk->h2);
-	element_clear(gpk->chi);
+	element_clear(gpk->h3);
 	element_clear(gpk->omega);
 	free(gpk);
 	gpk = NULL;
 	element_clear(memCre->J);
-	element_clear(memCre->z);
-	element_clear(memCre->rho);
+	element_clear(memCre->t);
+	element_clear(memCre->d);
 	free(memCre);
 	memCre = NULL;
 	TPM_RC rc = flush_handles();
@@ -359,7 +358,7 @@ int main()
 	element_init_Zr(sfm, pairing);
 
 	// HOST generates sign 'sigma-m' = (I, nt, ct, sf)
-	rc = createMemKeyHost(gpk, nim, pubTPM, ntm, ctm, sfm);
+	rc = joinHost(gpk, nim, pubTPM, ntm, ctm, sfm);
 	if (rc != 0)
 	{
 		perror("problem in createMemKeyHost");
@@ -374,7 +373,7 @@ int main()
 		perror("malloc failed");
 		exit(1);
 	}
-	err = createMemKeyIssuer(gpk, issuerSecret, nim, pubTPM, 
+	err = joinIssuer(gpk, issuerSecret, nim, pubTPM, 
 			*ntm, ctm, sfm, memCre);
 	if (err != 0)
 	{

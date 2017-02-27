@@ -39,15 +39,15 @@ struct groupPublicKey {
 	element_t g1;
 	element_t h1;
 	element_t h2;
-	element_t chi;
+	element_t h3;
 	element_t g2;
 	element_t omega;
 };
 
 struct membershipCredential {
 	element_t J;
-	element_t z;
-	element_t rho;
+	element_t t;
+	element_t d;
 };
 
 struct aliasCredential {
