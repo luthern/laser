@@ -89,3 +89,21 @@ struct laserSignature {
 	element_t sv;
 	element_t spsi;
 };
+
+struct signatureSigma0 {
+	element_t a1j;
+	element_t b2j;
+	element_t Kj;
+	element_t L;
+	element_t U1;
+	element_t U2;
+	element_t U3;
+	uint32_t nt0;
+	element_t ct0;
+	element_t sfg;
+	element_t sal;
+	element_t sz;
+	element_t sta;
+	element_t sxi;
+	element_t seta;
+};
