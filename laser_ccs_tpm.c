@@ -628,9 +628,14 @@ int main()
 	element_t yj; 
 	err = proveMembership(pubTPM, gpk, memCre, nig, yj, sigma0);
 	if (err != 0) {
-		perror("provePF_Membership failed");
+		perror("proveMembership failed");
 		exit(1);
 	}
+
+	/* End of getSignCre. Can free yj since its now copied into all the alias credentials */
+	element_clear(yj);
+	
+	// TODO: Clean up sigma0
 
 	// clear all the structures and key material, flush handles in TPM
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);	
