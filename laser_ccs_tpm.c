@@ -270,9 +270,128 @@ int createMemKeyIssuer(struct groupPublicKey * const gpk, element_t issuerSecret
 	return 0;
 }
 
-int getSignCredentialHost(element_t pubTPM, struct groupPublicKey *gpk, 
-		struct membershipCredential *memCre, TODO: TYPE baseRL)
+int provePF_Membership(element_t pubTPM, struct groupPublicKey *gpk, 
+		struct membershipCredential *memCre, struct signatureSigma0 *sigma0)
 {
+	element_t sigma0->a1j;
+	element_t Bj;
+	element_init_Zr(sigma0->a1j, pairing);
+	element_init_G1(Bj, pairing);
+
+	//SetPoint 'Bj'
+	setPoint(Bj, sigma0->a1j);
+
+	//TPM action
+	//TPM2_commit : createMemKeyP2(sigma0->a1j, sigma0->b2j (Bj->y), gpk->h1)
+	//output : (sigma0->Kj, S10, S20)
+
+	element_t alpha, theta, xi, eeta;
+	element_init_Zr(alpha, pairing);
+	element_init_Zr(theta, pairing);
+	element_init_Zr(xi, pairing);
+	element_init_Zr(eeta, pairing);
+
+  	element_random(alpha);
+  	element_random(theta);
+  	element_random(xi);
+
+  	element_mul(eeta, theta, xi);
+  	element_add(eeta, eeta, rho);
+
+	element_t hm, one;
+	element_init_G1(hm, pairing);
+	element_init_Zr(one, pairing)
+	element_set1(one);
+
+	element_pow3_zn(hm, gpk->g1, one, pubTPM, one, gpk->h2, memCre->rho);
+
+	element_init_G1(sigma0->L, pairing);
+  	element_pow2_zn(sigma0->L, pubTPM, one, gpk->h2, alpha);
+
+	element_t temp, temp1;
+	element_init_Zr(temp, pairing);
+	element_init_Zr(temp1, pairing);
+	element_init_G1(sigma0->U1, pairing);
+
+	element_invert(temp, theta);
+	element_pow_zn(sigma0->U1, memCre->J, temp);
+
+  	element_neg(temp1, memCre->z);
+	element_pow2_zn(sigma0->U2, memCre->J, temp1, hm, one);
+  	element_pow_zn(sigma0->U2, sigma0->U2, temp);
+
+  	element_pow2_zn(sigma0->U3, hm, temp, gpk->h2, xi);
+
+	element_t ral, rz, rta, rxi, reta;
+  	element_init_Zr(rz, pairing);
+  	element_init_Zr(rta, pairing);
+  	element_init_Zr(ral, pairing);
+  	element_init_Zr(rxi, pairing);
+  	element_init_Zr(reta, pairing);
+  	element_random(rz);
+  	element_random(rta);
+  	element_random(ral);
+  	element_random(rxi);
+  	element_random(reta);
+
+	element_t R1, R2, R3, R4;
+	element_init_G1(R1, pairing);
+	element_init_G1(R2, pairing);
+	element_init_G1(R3, pairing);
+	element_init_G1(R4, pairing);
+
+  	element_mul(R1, S10, one);	
+	element_pow2_zn(R2, S20, one, gpk->h2, ral);
+  	element_pow2_zn(R3, sigma0->U1, rz, gpk->h2, rxi);
+ 	element_neg(temp, reta);
+  	element_invert(temp1, S20);
+  	element_pow3_zn(R4, sigma0->U3, rta, temp1, one, gpk->h2, temp);
+
+	element_t ch0;
+	element_init_Zr(ch0, pairing);
+  	Hash2(ch0, Bj, sigma0->Kj, sigma0->L, sigma0->U1, sigma0->U2, sigma0->U3, R1, R2, R3, R4, 9);
+  	//forward 'ch0' to TPM
+
+	//TPM2_Sign algo
+	//output : (sigma0->nt0, sigma0->ct0, sigma0->sfg)
+	element_init_Zr(sigma0->ct0, pairing);
+	element_init_Zr(sigma0->sfg, pairing);
+
+  	element_init_Zr(sigma0->sz, pairing);
+  	element_init_Zr(sigma0->sta, pairing);
+  	element_init_Zr(sigma0->sal, pairing);
+  	element_init_Zr(sigma0->sxi, pairing);
+  	element_init_Zr(sigma0->seta, pairing);
+
+	element_mul(sigma0->sal, sigma0->ct0, alpha);
+	element_add(sigma0->sal, ral, sigma0->sal);
+	element_mul(sigma0->sz, sigma0->ct0, memCre->z);
+	element_add(sigma0->sz, rz, sigma0->sz);
+	element_mul(sigma0->sta, sigma0->ct0, theta);
+	element_add(sigma0->sta, rta, sigma0->sta);
+	element_mul(sigma0->sxi, sigma0->ct0, xi);
+	element_add(sigma0->sxi, rxi, sigma0->sxi);
+	element_mul(sigma0->seta, sigma0->ct0, eeta);
+	element_add(sigma0->seta, reta, sigma0->seta);
+
+	element_clear(Bj);
+	element_clear(alpha);
+	element_clear(theta);
+	element_clear(xi);
+	element_clear(eeta);
+	element_clear(hm);
+	element_clear(one);
+	element_clear(rz);
+	element_clear(rta);
+	element_clear(ral);
+	element_clear(rxi);
+	element_clear(reta);
+	element_clear(R1);
+	element_clear(R2);
+	element_clear(R3);
+	element_clear(R4);
+	element_clear(ch0);
+
 	return 0;
 }
 
@@ -383,6 +502,22 @@ int main()
 
 	/* Membership credential obtained, next getSignCredential */
 	
+//Pranav mods
+
+	struct signatureSigma0 * sigma0 = malloc(
+				sizeof(struct signatureSigma0));
+	if (sigma0 == NULL)
+	{
+		perror("malloc failed");
+		exit(1);
+	}
+	err = provePF_Membership(pubTPM, gpk, memCre, sigma0);
+	if (err != 0)
+	{
+		perror("provePF_Membership failed");
+		exit(1);
+	}
+//ends
 
 	// clear all the structures and key material, flush handles in TPM
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);	
@@ -498,108 +633,6 @@ int main()
 	element_init_Zr(tw1, pairing);
 
 	element_set1(one);
-	*/
-	/*
-	// GetSignKey -----------------------------------
-	printf("GetSignKey : \n");
-
-	// HOST side
-	setPoint(Bj, a1j);
-	// send (a1j, Bj->y, h1) to TPM
-
-	t1 = pbc_get_time();
-	host = host + (t1 - t0);
-
-	// TPM performs
-	// NOAH****************************************************
-	t0 = pbc_get_time();
-
-	element_pow_zn(Kj, Bj, f);
-
-	element_random(rf);
-	element_pow_zn(S10, Bj, rf);
-	element_pow_zn(S20, h1, rf);
-	// send (Kj, S10, S20) to Host
-
-	t1 = pbc_get_time();
-	tpm = tpm + (t1 - t0) + host; // cos TPM also hashes
-
-	// HOST does
-
-	t0 = pbc_get_time();
-
-	element_random(alpha);
-	element_random(theta);
-	element_random(xi);
-	element_mul(eeta, theta, xi);
-	element_add(eeta, eeta, rho);
-	element_mul(tmp1, g1, I);
-	element_pow2_zn(hm, tmp1, one, h2, rho);
-	element_pow2_zn(L, I, one, h2, alpha);
-	element_invert(tmpr, theta);
-	element_pow_zn(U1, J, tmpr);
-	element_neg(tmpc, z);
-	element_pow2_zn(U2, J, tmpc, hm, one);
-	element_pow_zn(U2, U2, tmpr);
-	element_pow2_zn(U3, hm, tmpr, h2, xi);
-
-	element_random(rz);
-	element_random(rta);
-	element_random(ral);
-	element_random(rxi);
-	element_random(reta);
-
-	element_mul(R1, S10, one);
-	element_pow2_zn(R2, S20, one, h2, ral);
-	element_pow2_zn(R3, U1, rz, h2, rxi);
-	element_neg(tmpr, reta);
-	element_invert(tmp1, S20);
-	element_pow3_zn(R4, U3, rta, tmp1, one, h2, tmpr);
-
-	Hash2(ch, Bj, Kj, L, U1, U2, U3, R1, R2, R3, R4, 9);
-	// forward 'ch' to TPM
-
-	t1 = pbc_get_time();
-	host = host + (t1 - t0);
-
-	// TPM in action
-	// NOAH**********************************************
-	t0 = pbc_get_time();
-
-	element_random(nt);
-	memset(ibuf, 0, sizeof ibuf);
-	memset(jbuf, 0, sizeof jbuf);
-	j = element_to_bytes(ibuf, ch);
-	j = element_to_bytes(jbuf, nt);
-	memcpy(ibuf + lz, jbuf, lz);
-	SHA256(ibuf, strlen((char *)ibuf), obuf);
-	element_from_hash(ct, obuf, 32);
-
-	element_mul(sf, ct, f);
-	element_add(sf, rf, sf);
-	// send (ct, nm, sf) to Host
-
-	t1 = pbc_get_time();
-	tpm = tpm + (t1 - t0);
-
-	// HOST back to work
-	t0 = pbc_get_time();
-
-	element_mul(sal, ct, alpha);
-	element_add(sal, ral, sal);
-	element_mul(sz, ct, z);
-	element_add(sz, rz, sz);
-	element_mul(sta, ct, theta);
-	element_add(sta, rta, sta);
-	element_mul(sxi, ct, xi);
-	element_add(sxi, rxi, sxi);
-	element_mul(seta, ct, eeta);
-	element_add(seta, reta, seta);
-	// output signature 'sig-0' = (a2j, Bj->y, Kj, L, U1, U2, U3, nt, ct,
-	// sf, sal, sz, sta, sxi, seta)
-
-	t1 = pbc_get_time();
-	host = host + (t1 - t0);
 
 	for (i = 0; i < nr; i++) // nr = baseRL
 	{
