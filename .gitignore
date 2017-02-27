@@ -36,3 +36,6 @@
 laser_platform
 laser_issuer
 laser_keygen_test
+laser_ccs_tpm
+
+.clang-format
