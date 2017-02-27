@@ -28,19 +28,19 @@ TSS_HEADERS += 						\
 		$(TSSDIR)tss2/tssutils.h
 PBC_HEADERS += 	$(wildcard $(PBCDIR)*.h)
 	       
-ALL = 		laser_platform \
-      		laser_issuer \
-		laser_ccs_tpm
+ALL = 		laser_ccs_tpm \
+#		laser_platform \
+#      		laser_issuer \
 
 all:	$(ALL)
 
-CONSISTENT = 	laser_tpm.h 	\
+#CONSISTENT = 	laser_tpm.h 	\
 	     	laser_hw_tpm.c 	\
 	     	laser_utils.h
 
-laser_platform:		laser_platform.c
-			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_platform.c $(LNALIBS) -o laser_platform $(LIBS)
-laser_issuer: 		laser_issuer.c
-			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_issuer.c $(LNALIBS) -o laser_issuer $(LIBS)
+#laser_platform:		laser_platform.c
+#			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_platform.c $(LNALIBS) -o laser_platform $(LIBS)
+#laser_issuer: 		laser_issuer.c
+#			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_issuer.c $(LNALIBS) -o laser_issuer $(LIBS)
 laser_ccs_tpm:		laser_ccs_tpm.c
 			$(CC) $(CFLAGS) $(LNFLAGS) laser.h laser_ccs_tpm.c laser_tpm.h laser_hw_tpm.c $(LNALIBS) -o laser_ccs_tpm $(LIBS)
