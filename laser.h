@@ -70,7 +70,7 @@ struct revocationListEntry {
 
 struct basenameRevocationList {
 	uint32_t entries;
-	struct revocationListEntry *revokedBasenameList;
+	struct revocationListEntry **revokedBasenameList;
 };
 
 struct registryEntry {
@@ -83,7 +83,7 @@ struct registryEntry {
 
 struct registry {
 	uint32_t entries;
-	struct registeryEntry *registryEntries;
+	struct registeryEntry **registryEntries;
 };
 
 struct laserSignature {
@@ -103,7 +103,8 @@ struct laserSignature {
 	element_t sv;
 };
 
-struct signatureSigma0 {
+/* sigma_0 in GetSignCre */
+struct membershipProof {
 	element_t a2j;
 	element_t b2j;
 	element_t Kj;
@@ -119,4 +120,19 @@ struct signatureSigma0 {
 	element_t stheta;
 	element_t sxi;
 	element_t snu;
+};
+
+/* sigma_i in GetSignCre */
+struct basenameProof {
+	element_t Pi;
+	uint32_t nti;
+	element_t cti;
+	element_t staui;
+	element_t svi;
+};
+
+struct sigmaG {
+	struct membershipProof * sigma0;
+	uint32_t entries;
+	struct basenameProof ** proofsOfNonRevocation;
 };

@@ -1,7 +1,7 @@
 #include "laser.h"
 #include "laser_tpm.h"
 
-int i, j, k = 100, nr = 256;
+uint64_t aliasTokensPerSignCre = 100, baseRL_entries = 256;
 double t0 = 0, t1 = 0, tpm = 0, host = 0, iss = 0;
 static pairing_t pairing;
 static FILE *fp;
@@ -10,8 +10,8 @@ void Hash1(element_t z1, element_t z2, element_t z)
 {
 	memset(ibuf, 0, sizeof ibuf);
 	memset(jbuf, 0, sizeof jbuf);
-	j = element_to_bytes(jbuf, z1);
-	j = element_to_bytes(jbuf, z2);
+	element_to_bytes(jbuf, z1);
+	element_to_bytes(jbuf, z2);
 	memcpy(ibuf + l1, jbuf, l1);
 	SHA256(ibuf, 2 * l1, obuf);
 	element_from_hash(z, obuf, 32);
@@ -32,7 +32,7 @@ void setPoint(element_t Bj, element_t a1j)
 	do {
 		element_random(a1j);
 		memset(jbuf, 0, sizeof jbuf);
-		j = element_to_bytes(jbuf, a1j);
+		element_to_bytes(jbuf, a1j);
 		SHA256(jbuf, strlen((char *)ibuf), obuf);
 		element_from_hash(z, obuf, 32);
 		element_set(pt->x, z);
@@ -54,28 +54,28 @@ void Hash2(element_t z, element_t B, element_t K, element_t L, element_t Uo,
 {
 	memset(ibuf, 0, sizeof ibuf);
 	memset(jbuf, 0, sizeof jbuf);
-	j = element_to_bytes(ibuf, B);
-	j = element_to_bytes(jbuf, K);
+	element_to_bytes(ibuf, B);
+	element_to_bytes(jbuf, K);
 	memcpy(ibuf + l1, jbuf, l1);
-	j = element_to_bytes(jbuf, L);
+	element_to_bytes(jbuf, L);
 	memcpy(ibuf + 2 * l1, jbuf, l1);
-	j = element_to_bytes(jbuf, Uo);
+	element_to_bytes(jbuf, Uo);
 	memcpy(ibuf + 3 * l1, jbuf, l1);
-	j = element_to_bytes(jbuf, Ut);
+	element_to_bytes(jbuf, Ut);
 	memcpy(ibuf + 4 * l1, jbuf, l1);
-	j = element_to_bytes(jbuf, Ue);
+	element_to_bytes(jbuf, Ue);
 	memcpy(ibuf + 5 * l1, jbuf, l1);
-	j = element_to_bytes(jbuf, Ro);
+	element_to_bytes(jbuf, Ro);
 	memcpy(ibuf + 6 * l1, jbuf, l1);
 
 	if (q > 7) {
-		j = element_to_bytes(jbuf, Rt);
+		element_to_bytes(jbuf, Rt);
 		memcpy(ibuf + 7 * l1, jbuf, l1);
-		j = element_to_bytes(jbuf, Re);
+		element_to_bytes(jbuf, Re);
 		memcpy(ibuf + 8 * l1, jbuf, l1);
 	}
 	if (q > 8) {
-		j = element_to_bytes(jbuf, Rf);
+		element_to_bytes(jbuf, Rf);
 		memcpy(ibuf + 9 * l1, jbuf, l1);
 	}
 
@@ -276,7 +276,7 @@ int getSignCredentialHost(element_t pubTPM, struct groupPublicKey *gpk,
 	return 0;
 }
 
-int initSignatureSigma0(struct signatureSigma0 * sigma0)
+int initSignatureSigma0(struct membershipProof * sigma0)
 {
 	int err = fread(&sigma0->nt0, 4, 1, fp);
 	if (err != 1) {
@@ -302,11 +302,11 @@ int initSignatureSigma0(struct signatureSigma0 * sigma0)
 
 int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 		struct membershipCredential *memCre, uint32_t nig, 
-		element_t yj, struct signatureSigma0 *sigma0)
+		element_t yj, struct membershipProof *sigma0)
 {
 	TPM_RC rc = 0;
 
-	/* Initialize signatureSigma0 struct */
+	/* Initialize membershipProof struct */
 	int err = initSignatureSigma0(sigma0);
 	if (err != 0) 
 	{
@@ -505,9 +505,113 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 	return 0;
 }
 
-int getSignCredentialIssuer(element_t issuerSecret, struct groupPublicKey *gpk, 
-		struct basenameRevocationList *baseRL, struct registry *reg)
+void addRandomRevocationListEntry(struct basenameRevocationList *baseRL)
 {
+	if (baseRL->entries == 0) {
+		baseRL->revokedBasenameList = 
+			malloc(sizeof(struct revocationListEntry *));
+	} else {
+		/* Extend list */
+		baseRL->revokedBasenameList = 
+			realloc(baseRL->revokedBasenameList, 
+			(baseRL->entries + 1) 
+			* sizeof(struct revocationListEntry *));
+	}
+
+	/* Generate an entry for the revokedBasenameList */
+	baseRL->revokedBasenameList[baseRL->entries] = 
+		malloc(sizeof(struct revocationListEntry));
+	element_init_Zr(baseRL->revokedBasenameList[baseRL->entries]->a2i, pairing);
+	element_init_Zr(baseRL->revokedBasenameList[baseRL->entries]->b2i, pairing);
+	element_init_G1(baseRL->revokedBasenameList[baseRL->entries]->Ki, pairing);
+
+	/* Choose the values for the revocation list entry randomly */
+	element_t Bi;
+	element_init_G1(Bi, pairing);
+	setPoint(Bi, baseRL->revokedBasenameList[baseRL->entries]->a2i);
+	unsigned char b2i_buf[32];
+	element_to_bytes(b2i_buf, element_y(Bi));
+	element_from_bytes(baseRL->revokedBasenameList[baseRL->entries]->b2i, b2i_buf);
+	
+	element_t randomKey;
+	element_init_Zr(randomKey, pairing);
+	element_random(randomKey);
+	element_pow_zn(baseRL->revokedBasenameList[baseRL->entries]->Ki, Bi, randomKey);
+
+	element_clear(randomKey);
+	element_clear(Bi);
+	/* Increment entries in the list */	
+	baseRL->entries += 1;
+}
+
+/*
+ * We assert that the length of the revocation list will be extended when 
+ * a new entry is added to support arbitrary length lists.
+ */
+void generateBaseRL(int numRevoked, struct basenameRevocationList *baseRL) 
+{
+	if (baseRL == NULL)
+	{
+		baseRL = malloc(sizeof(struct basenameRevocationList));
+		if (baseRL == NULL)
+			exit(1);
+		baseRL->entries = 0;
+	}
+
+	int i;
+	for (i = 0; i < numRevoked; i++) {
+		addRandomRevocationListEntry(baseRL);
+	}
+}
+
+int singleBasenameProof(int index, struct revocationListEntry *revEntry, struct sigmaG *sigmaG)
+{
+	struct basenameProof *proof = sigmaG->proofsOfNonRevocation[index];
+	proof = malloc(sizeof(struct basenameProof));
+	element_init_G1(proof->Pi, pairing);
+	element_init_Zr(proof->cti, pairing);
+	element_init_Zr(proof->staui, pairing);
+	element_init_Zr(proof->svi, pairing);
+	
+	/* nti supposed to be TPM generated, is not */
+	int err = fread(&proof->nti, 4, 1, fp);
+	if (err != 1) {
+		perror("read urandom failed");
+		return err;
+	}	
+
+	unsigned char a2i_buf[32];
+	unsigned char Bi_buf[64];
+	element_to_bytes(a2i_buf, revEntry->a2i);
+	SHA256(a2i_buf, 32, Bi_buf);
+	element_to_bytes(Bi_buf + 32, revEntry->b2i);
+
+	element_t Bi;
+	element_init_G1(Bi, pairing);
+	element_from_bytes(Bi, Bi_buf);
+
+	/* Next up TPM things */	
+
+	return 0;
+}	
+
+int proveUnrevokedBasename(struct basenameRevocationList *baseRL, struct sigmaG *sig)
+{
+	int i;
+	int err;
+	
+	sig->entries = baseRL->entries;
+	sig->proofsOfNonRevocation = 
+		malloc(sig->entries * sizeof(struct basenameProof *));
+	
+	for (i = 0; i < baseRL->entries; i++)
+	{
+		err = singleBasenameProof(i, baseRL->revokedBasenameList[i], sig);
+		if (err != 0) {
+			perror("My basename was revoked!!");
+			return err;
+		}
+	}
 	return 0;
 }
 
@@ -537,6 +641,7 @@ void clearKeyMaterial(element_t pubTPM, element_t issuerSecret,
 		exit(1);
 	}
 }
+
 int main()
 {
 	// init pairing, declare error variables
@@ -618,8 +723,8 @@ int main()
 		exit(1);
 	}	
 
-	struct signatureSigma0 * sigma0 = malloc(
-				sizeof(struct signatureSigma0));
+	struct membershipProof * sigma0 = malloc(
+				sizeof(struct membershipProof));
 	if (sigma0 == NULL) {
 		perror("malloc failed");
 		exit(1);
@@ -632,10 +737,22 @@ int main()
 		exit(1);
 	}
 
+	struct basenameRevocationList * baseRL = NULL; /* allocated in generateBaseRL */
+	generateBaseRL(baseRL_entries, baseRL);
+
 	/* End of getSignCre. Can free yj since its now copied into all the alias credentials */
 	element_clear(yj);
 	
-	// TODO: Clean up sigma0
+	struct sigmaG *proofForIssuer = malloc(sizeof(struct sigmaG));
+	proofForIssuer->entries = baseRL_entries;
+	proofForIssuer->sigma0 = sigma0;
+	err = proveUnrevokedBasename(baseRL, proofForIssuer);
+	if (err != 0) {
+		perror("proveUnrevokedBasename failed");
+		exit(1);
+	}
+
+	// TODO: Clean up proofForIssuer, baseRL
 
 	// clear all the structures and key material, flush handles in TPM
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);	
@@ -646,17 +763,6 @@ int main()
 	/*
 	element_init_G1(hm, pairing);
 	element_init_G1(hs, pairing);
-
-	element_t hm, hs;
-	element_t f, p, z, a1j, a2i;
-	element_t Bj, D, E, I, J, Kj, L, U1, U2, U3, S10, S20;
-	element_t delta, eeta, mu, alpha, theta, rho, xi, psi, v;
-	element_t rd, rf, rta, rz, rxi, rmu, reta, ral, rvi, rpsi;
-	element_t sd, sf, sta, sz, sxi, smu, seta, sal, svi, spsi;
-	element_t tw1, c, ch, ct, cq, cj;
-	element_t tmp1, tmp11, tmp2, tmp22, tmpt, tmpt2, tmpr, tmpc;
-	element_t one;
-	element_t T1, T2, T3, R1, R2, R3, R1t, R2t, R3t, R4, R4t, Rm, Rmb;
 
 	element_t x[k], beta[k], y[k], A[k];
 
