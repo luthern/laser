@@ -5,7 +5,7 @@ PBCDIR = /usr/local/include/pbc/
 PBCLIBDIR = /usr/local/lib/
 CFLAGS = 	-DTPM_POSIX \
 		-I$(TSSDIR) -I$(TSSDIR)tss2/ -I$(PBCDIR) -DTPM_TSS \
-		-DTPM_INTERFACE_TYPE_DEFAULT="\"dev\"" -Wall
+		-DTPM_INTERFACE_TYPE_DEFAULT="\"dev\"" -ggdb -Wall
 LNFLAGS = 	-DTPM_POSIX		\
 		-L$(TSSDIR)		\
 		-L$(PBCLIBDIR)

@@ -8,7 +8,7 @@
 
 int main();
 void Hash1(element_t z1, element_t z2, element_t z);
-void setPoint(element_t Bj, element_t a1j);
+void setPoint(element_t B0, element_t a1j);
 void Hash2(element_t z, element_t B, element_t K, element_t L, element_t Uo,
 	   element_t Ut, element_t Ue, element_t Ro, element_t Rt, element_t Re,
 	   element_t Rf, int q);
@@ -52,18 +52,19 @@ struct membershipCredential {
 
 struct aliasCredential {
 	element_t Ajk;
+	element_t zjk;
+	element_t yj;
 	element_t xjk;
-	element_t yjk;
 };
 
 /* Signing credential is simply a list of ma aliasCredentials */
 struct signingCredential {
 	uint32_t entries;
-	struct aliasCredential *aliasTokenList;
+	struct aliasCredential **aliasTokenList;
 };
 
 struct revocationListEntry {
-	element_t a2i;
+	element_t a1i;
 	element_t b2i;
 	element_t Ki;
 };
@@ -74,16 +75,16 @@ struct basenameRevocationList {
 };
 
 struct registryEntry {
-	element_t a2j;
-	element_t b2j;
-	element_t Kj;
-	uint32_t num_alias_tokens;
-	element_t *alias_tokens;
+	element_t a10;
+	element_t b20;
+	element_t K0;
+	uint32_t num_tokens;
+	element_t *alias_tokens_xs;
 };
 
 struct registry {
 	uint32_t entries;
-	struct registeryEntry **registryEntries;
+	struct registryEntry **registryEntries;
 };
 
 struct laserSignature {
@@ -105,16 +106,16 @@ struct laserSignature {
 
 /* sigma_0 in GetSignCre */
 struct membershipProof {
-	element_t a2j;
-	element_t b2j;
-	element_t Kj;
+	element_t a10;
+	element_t b20;
+	element_t K0;
 	element_t L;
 	element_t U1;
 	element_t U2;
 	element_t U3;
 	uint32_t nt0;
 	element_t ct0;
-	element_t sfg;
+	element_t sf0;
 	element_t sy;
 	element_t st;
 	element_t stheta;
