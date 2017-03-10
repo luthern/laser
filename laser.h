@@ -75,10 +75,10 @@ struct basenameRevocationList {
 };
 
 struct registryEntry {
+	uint32_t num_tokens;
 	element_t a10;
 	element_t b20;
 	element_t K0;
-	uint32_t num_tokens;
 	element_t *alias_tokens_xs;
 };
 

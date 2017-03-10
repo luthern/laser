@@ -262,7 +262,7 @@ int joinIssuer(struct groupPublicKey * const gpk, element_t issuerSecret, uint32
 	return 0;
 }
 
-int initSignatureSigma0(struct membershipProof * sigma0)
+int initSignatureSigma0(struct membershipProof *sigma0)
 {
 	int err = fread(&sigma0->nt0, 4, 1, fp);
 	if (err != 1) {
@@ -340,7 +340,7 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 		printf("getSignKeyP1 complete\n");
 	
 	element_from_bytes(sigma0->K0, K0_buf);
-
+	element_printf("%B\n", sigma0->K0);
 	element_t S10;
 	element_t S20;
 	element_init_G1(S10, pairing);
@@ -937,11 +937,19 @@ void issuerAliasTokenGeneration(struct groupPublicKey *gpk, element_t issuerSecr
 		struct signingCredential *signCre)
 {
 	signCre->entries = proof->entries;
+	reg->registryEntries = malloc(sizeof(struct registryEntry *));
 	reg->registryEntries[reg->entries] = malloc(sizeof(struct registryEntry));
+	element_init_Zr(reg->registryEntries[reg->entries]->a10, pairing);
+	element_init_Zr(reg->registryEntries[reg->entries]->b20, pairing);
+	element_init_G1(reg->registryEntries[reg->entries]->K0, pairing);
 	element_set(reg->registryEntries[reg->entries]->a10, proof->sigma0->a10);
 	element_set(reg->registryEntries[reg->entries]->b20, proof->sigma0->b20);
 	element_set(reg->registryEntries[reg->entries]->K0, proof->sigma0->K0);
 	int i;
+	// TODO: More flexible registry allocation of memory so we can add more tokens
+	// and have more than one signCredential. This is not possible with current code.
+	reg->registryEntries[reg->entries]->alias_tokens_xs = 
+		malloc(aliasTokensPerSignCre * sizeof(element_t));
 	for (i = 0; i < aliasTokensPerSignCre; i++) {
 		element_t xjk;
 		element_t zjk;
@@ -971,6 +979,7 @@ void issuerAliasTokenGeneration(struct groupPublicKey *gpk, element_t issuerSecr
 		element_set(signCre->aliasTokenList[i]->xjk, xjk);
 		element_set(signCre->aliasTokenList[i]->zjk, zjk);
 
+		// segfault here memory for the registry x coords
 		element_init_Zr(reg->registryEntries[reg->entries]->alias_tokens_xs[i], 
 				pairing);
 		element_set(reg->registryEntries[reg->entries]->alias_tokens_xs[i], 
