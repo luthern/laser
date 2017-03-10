@@ -340,7 +340,7 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 		printf("getSignKeyP1 complete\n");
 	
 	element_from_bytes(sigma0->K0, K0_buf);
-	element_printf("%B\n", sigma0->K0);
+	element_printf("sigma0->K0: %B\n", sigma0->K0);
 	element_t S10;
 	element_t S20;
 	element_init_G1(S10, pairing);
@@ -937,19 +937,14 @@ void issuerAliasTokenGeneration(struct groupPublicKey *gpk, element_t issuerSecr
 		struct signingCredential *signCre)
 {
 	signCre->entries = proof->entries;
-	reg->registryEntries = malloc(sizeof(struct registryEntry *));
-	reg->registryEntries[reg->entries] = malloc(sizeof(struct registryEntry));
-	element_init_Zr(reg->registryEntries[reg->entries]->a10, pairing);
-	element_init_Zr(reg->registryEntries[reg->entries]->b20, pairing);
-	element_init_G1(reg->registryEntries[reg->entries]->K0, pairing);
-	element_set(reg->registryEntries[reg->entries]->a10, proof->sigma0->a10);
-	element_set(reg->registryEntries[reg->entries]->b20, proof->sigma0->b20);
-	element_set(reg->registryEntries[reg->entries]->K0, proof->sigma0->K0);
+	signCre->aliasTokenList = malloc(aliasTokensPerSignCre * 
+			sizeof(struct aliasCredential *));
+	reg->registryEntries = malloc(aliasTokensPerSignCre * 
+			sizeof(struct registryEntry *));
+	
 	int i;
 	// TODO: More flexible registry allocation of memory so we can add more tokens
 	// and have more than one signCredential. This is not possible with current code.
-	reg->registryEntries[reg->entries]->alias_tokens_xs = 
-		malloc(aliasTokensPerSignCre * sizeof(element_t));
 	for (i = 0; i < aliasTokensPerSignCre; i++) {
 		element_t xjk;
 		element_t zjk;
@@ -979,19 +974,25 @@ void issuerAliasTokenGeneration(struct groupPublicKey *gpk, element_t issuerSecr
 		element_set(signCre->aliasTokenList[i]->xjk, xjk);
 		element_set(signCre->aliasTokenList[i]->zjk, zjk);
 
-		// segfault here memory for the registry x coords
-		element_init_Zr(reg->registryEntries[reg->entries]->alias_tokens_xs[i], 
-				pairing);
-		element_set(reg->registryEntries[reg->entries]->alias_tokens_xs[i], 
-				xjk);
-		
+		// TODO: Make the registry hold a single record per a10, b20, K0 set
+		// instead of one per xjk...?
+		reg->registryEntries[reg->entries] = malloc(sizeof(struct registryEntry));
+		element_init_Zr(reg->registryEntries[reg->entries]->a10, pairing);
+		element_init_Zr(reg->registryEntries[reg->entries]->b20, pairing);
+		element_init_G1(reg->registryEntries[reg->entries]->K0, pairing);
+		element_init_Zr(reg->registryEntries[reg->entries]->xjk, pairing);
+		element_set(reg->registryEntries[reg->entries]->a10, proof->sigma0->a10);
+		element_set(reg->registryEntries[reg->entries]->b20, proof->sigma0->b20);
+		element_set(reg->registryEntries[reg->entries]->K0, proof->sigma0->K0);
+		element_set(reg->registryEntries[reg->entries]->xjk, xjk);
+
 		element_clear(xjk);
 		element_clear(zjk);
 		element_clear(Ajk);
 		element_clear(one);
 		element_clear(exponent);
+		reg->entries++;
 	}	
-	reg->entries += 1;
 }
 
 void platformFinishTokens(struct signingCredential *signCre, element_t yj)
@@ -1076,14 +1077,36 @@ void freeProofForIssuer(struct sigmaG *proof)
 
 void freeRegistry(struct registry *reg)
 {
-	if (reg != NULL)
-		printf("Implement freeRegistry!!!\n");
+	if (reg == NULL)
+		return;
+	int i;
+	for (i = 0; i < reg->entries; i++) {
+		element_clear(reg->registryEntries[i]->a10);
+		element_clear(reg->registryEntries[i]->b20);
+		element_clear(reg->registryEntries[i]->xjk);
+		element_clear(reg->registryEntries[i]->K0);
+		free(reg->registryEntries[i]);
+		reg->registryEntries[i] = NULL;
+	}
+	free(reg);
+	reg = NULL;
 }
 
 void freeSignCredential(struct signingCredential * signCre)
 {
 	if (signCre != NULL)
-		printf("Implement freeSignCredential!!!\n");
+		return;
+	int i;
+	for (i = 0; i < signCre->entries; i++) {
+		element_clear(signCre->aliasTokenList[i]->Ajk);
+		element_clear(signCre->aliasTokenList[i]->zjk);
+		element_clear(signCre->aliasTokenList[i]->yj);
+		element_clear(signCre->aliasTokenList[i]->xjk);
+		free(signCre->aliasTokenList[i]);
+		signCre->aliasTokenList[i] = NULL;
+	}
+	free(signCre);
+	signCre = NULL;
 }
 
 int main()

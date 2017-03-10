@@ -74,12 +74,15 @@ struct basenameRevocationList {
 	struct revocationListEntry **revokedBasenameList;
 };
 
+struct xCoord {
+	element_t xjk;
+};
+
 struct registryEntry {
-	uint32_t num_tokens;
 	element_t a10;
 	element_t b20;
 	element_t K0;
-	element_t *alias_tokens_xs;
+	element_t xjk;
 };
 
 struct registry {
