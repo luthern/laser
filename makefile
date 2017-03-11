@@ -44,3 +44,6 @@ all:	$(ALL)
 #			$(CC) $(CFLAGS) $(LNFLAGS) $(CONSISTENT) laser_issuer.c $(LNALIBS) -o laser_issuer $(LIBS)
 laser_ccs_tpm:		laser_ccs_tpm.c
 			$(CC) $(CFLAGS) $(LNFLAGS) laser.h laser_ccs_tpm.c laser_tpm.h laser_hw_tpm.c $(LNALIBS) -o ccs_exe $(LIBS)
+
+clean:
+	rm ccs_exe

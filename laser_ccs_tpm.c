@@ -67,7 +67,7 @@ void Hash2(element_t z, element_t B, element_t K, element_t L, element_t Uo,
 		element_to_bytes(jbuf, Re);
 		memcpy(ibuf + 8 * l1, jbuf, l1);
 	}
-	if (q > 8) {
+	if (q > 9) {
 		element_to_bytes(jbuf, Rf);
 		memcpy(ibuf + 9 * l1, jbuf, l1);
 	}
@@ -340,7 +340,6 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 		printf("getSignKeyP1 complete\n");
 	
 	element_from_bytes(sigma0->K0, K0_buf);
-	element_printf("sigma0->K0: %B\n", sigma0->K0);
 	element_t S10;
 	element_t S20;
 	element_init_G1(S10, pairing);
@@ -898,7 +897,6 @@ int issuerValidateSingleRevProof(struct revocationListEntry *entry,
 	element_set1(one_G1);
 	/* Cannot compare G1 element to Zr.... this won't work.
 	 * Need a more reasonable way to validate Pi is not one.*/
-	element_printf("Pi: %B\n", baseProof->Pi);
 	if (!element_cmp(baseProof->Pi, one_G1)) {
 		printf("Pi = 1_G1. Failed Issuer GetSignCre (7)(d)\n");
 		element_clear(one_G1);
@@ -1004,6 +1002,295 @@ void platformFinishTokens(struct signingCredential *signCre, element_t yj)
 	}
 }
 
+void initSignatureStructure(struct laserSignature *sig)
+{
+	int err = fread(&sig->nts, 4, 1, fp);
+	if (err != 1) {
+		perror("read urandom failed");
+		exit(1);
+	}	
+	element_init_Zr(sig->xjk, pairing);
+	element_init_Zr(sig->a1s, pairing);
+	element_init_Zr(sig->b2s, pairing);
+	element_init_G1(sig->Ks, pairing);
+	element_init_G1(sig->T1, pairing);
+	element_init_G1(sig->T2, pairing);
+	element_init_G1(sig->T3, pairing);
+	element_init_Zr(sig->cts, pairing);
+	element_init_Zr(sig->sfs, pairing);
+	element_init_Zr(sig->sz, pairing);
+	element_init_Zr(sig->sdelta, pairing);
+	element_init_Zr(sig->smu, pairing);
+	element_init_Zr(sig->sv, pairing);
+}
+
+int signMessage(struct groupPublicKey *gpk, element_t pubTPM, 
+		struct aliasCredential *alias, char *message,
+		struct laserSignature *sig)
+{
+	int err;
+	TPM_RC rc = 0;
+
+	initSignatureStructure(sig);
+	element_set(sig->xjk, alias->xjk);
+	element_t Bs;
+	element_init_G1(Bs, pairing);
+
+	//SetPoint 'Bs', a1s is the preimage of Bs->x
+	setPoint(Bs, sig->a1s);
+	
+	/* Copy Bs->y into sig->b2s */
+	unsigned char b2s_buf[32];
+	element_to_bytes(b2s_buf, element_y(Bs));
+	element_from_bytes(sig->b2s, b2s_buf);
+	
+	/* TPM Signature Part 1 */
+	uint16_t *commit_cntr = malloc(sizeof(uint16_t));
+	double *time_taken = malloc(sizeof(double));
+
+	unsigned char h1_buf[64];
+	element_to_bytes(h1_buf, gpk->h1);
+
+	unsigned char a1s_buf[32];
+	element_to_bytes(a1s_buf, sig->a1s);
+	unsigned char Ks_buf[64];
+	unsigned char S1s_buf[64];
+	unsigned char S2s_buf[64];	
+	rc = getSignKeyP3(h1_buf, h1_buf + 32, a1s_buf, b2s_buf,
+		Ks_buf, Ks_buf + 32, S1s_buf, S1s_buf + 32, 
+		S2s_buf, S2s_buf + 32, commit_cntr, time_taken);
+	if (rc != 0) {
+		perror("signP1 failed");
+		return rc;
+	} else
+		printf("signP1 complete\n");
+	
+	element_t S1s, S2s;
+	element_init_G1(S1s, pairing);
+	element_init_G1(S2s, pairing);
+	element_from_bytes(sig->Ks, Ks_buf);
+	element_from_bytes(S1s, S1s_buf);
+	element_from_bytes(S2s, S2s_buf);
+
+	element_t mu, delta, v, hs;
+	element_init_Zr(mu, pairing);
+	element_init_Zr(delta, pairing);
+	element_init_Zr(v, pairing);
+	element_init_G1(hs, pairing);
+
+	element_t one;
+	element_init_Zr(one, pairing);
+	element_set1(one);
+	
+	/* Compute mu, delta, v, hs */
+	element_random(mu);
+	element_random(delta);
+	element_mul(v, mu, delta);
+	element_add(v, v, alias->yj);
+	element_mul(hs, pubTPM, gpk->g1);
+	element_pow3_zn(hs, hs, one, gpk->h2, alias->yj, gpk->h3, alias->xjk); 
+	
+	/* Compute T1, T2, T3 */
+	element_t inv_delta;
+	element_init_Zr(inv_delta, pairing);
+	element_invert(inv_delta, delta);
+
+	element_t neg_zjk;
+	element_init_Zr(neg_zjk, pairing);
+	element_neg(neg_zjk, alias->zjk);
+
+	element_pow_zn(sig->T1, alias->Ajk, inv_delta);
+	element_pow2_zn(sig->T2, alias->Ajk, neg_zjk, hs, one);
+	element_pow_zn(sig->T2, sig->T2, inv_delta);
+	element_pow2_zn(sig->T3, hs, inv_delta, gpk->h2, mu);
+
+	/* Compute R1s, R2s, R3s */
+	element_t rz, rdelta, rmu, rv;
+	element_init_Zr(rz, pairing);
+	element_init_Zr(rdelta, pairing);
+	element_init_Zr(rmu, pairing);
+	element_init_Zr(rv, pairing);
+	element_random(rz);
+	element_random(rdelta);
+	element_random(rmu);
+	element_random(rv);
+
+	element_t neg_one;
+	element_init_Zr(neg_one, pairing);
+	element_neg(neg_one, one);
+
+	element_t neg_rv;
+	element_init_Zr(neg_rv, pairing);
+	element_neg(neg_rv, rv);
+
+	element_t R1s, R2s, R3s;
+	element_init_G1(R1s, pairing);
+	element_init_G1(R2s, pairing);
+	element_init_G1(R3s, pairing);
+
+	element_set(R1s, S1s);
+	element_pow2_zn(R2s, sig->T1, rz, gpk->h2, rmu);
+	element_pow3_zn(R3s, sig->T3, rdelta, S2s, neg_one, gpk->h2, neg_rv);
+	
+	element_t chs;
+	element_init_Zr(chs, pairing);
+	Hash2(chs, sig->xjk, Bs, sig->Ks, sig->T1, sig->T2, 
+			sig->T3, R1s, R2s, R3s, NULL, 9); 
+	
+	err = fread(&sig->nts, 4, 1, fp);
+	if (err != 1) {
+		perror("read urandom failed");
+		exit(1);
+	}	
+	unsigned char chs_buf[32];
+	element_to_bytes(chs_buf, chs);
+	unsigned char sfs_buf[64];
+	unsigned char cts_buf[64];
+
+	rc = signP2(*commit_cntr, sig->nts, chs_buf, message, strlen(message), 
+			sfs_buf, cts_buf, time_taken);
+	if (rc != 0) {
+		perror("signP2 failed");
+		return rc;
+	}
+	element_from_bytes(sig->sfs, sfs_buf);
+	element_from_bytes(sig->cts, cts_buf);
+
+	/* Compute sz, sdelta, smu, sv */
+	element_mul(sig->sz, sig->cts, alias->zjk);
+	element_add(sig->sz, sig->sz, rz);
+	element_mul(sig->sdelta, sig->cts, delta);
+	element_add(sig->sdelta, sig->sdelta, rdelta);
+	element_mul(sig->smu, sig->cts, mu);
+	element_add(sig->smu, sig->smu, rmu);
+	element_mul(sig->sv, sig->cts, v);
+	element_add(sig->sv, sig->sv, rv);
+
+	element_clear(chs);
+	element_clear(rz);
+	element_clear(rdelta);
+	element_clear(rmu);
+	element_clear(rv);
+	element_clear(inv_delta);
+	element_clear(neg_zjk);
+	element_clear(neg_rv);
+	element_clear(neg_one);
+	element_clear(R1s);
+	element_clear(R2s);
+	element_clear(R3s);
+	element_clear(mu);
+	element_clear(delta);
+	element_clear(v);
+	element_clear(hs);
+	element_clear(one);
+	element_clear(S1s);
+	element_clear(S2s);
+	free(commit_cntr);
+	free(time_taken);
+	return 0;
+}
+
+int verifySignature(struct groupPublicKey *gpk, struct laserSignature *sig,
+		char *message, struct aliasTokenRevocationList *atRL)
+{
+	/* Verify validity */
+	unsigned char Bs_buf[64];
+	unsigned char a1s_buf[32];
+	element_to_bytes(a1s_buf, sig->a1s);
+	SHA256(a1s_buf, 32, Bs_buf);
+	element_to_bytes(Bs_buf + 32, sig->b2s);
+	element_t Bs;
+	element_init_G1(Bs, pairing);
+	element_from_bytes(Bs, Bs_buf);
+
+	element_t pairing_T1_omega, pairing_T2_g2;
+	element_init_GT(pairing_T1_omega, pairing);
+	element_init_GT(pairing_T2_g2, pairing);
+
+	element_pairing(pairing_T1_omega, sig->T1, gpk->omega);	
+	element_pairing(pairing_T2_g2, sig->T2, gpk->g2);
+
+	if (element_cmp(pairing_T1_omega, pairing_T2_g2)) {
+		printf("Verification of validity (1)(b) failed\n");
+		element_clear(pairing_T1_omega);
+		element_clear(pairing_T2_g2);
+		element_clear(Bs);
+		return 1;
+	} else {
+		printf("Verification of validity (1)(b) succeeded\n");
+	}
+	element_clear(pairing_T1_omega);
+	element_clear(pairing_T2_g2);
+
+	element_t R1s_hat, R2s_hat, R3s_hat;
+	element_init_G1(R1s_hat, pairing);
+	element_init_G1(R2s_hat, pairing);
+	element_init_G1(R3s_hat, pairing);
+	
+	element_t neg_cts, neg_sfs, neg_sv, neg_xjk, one, exponent;
+	element_init_Zr(neg_cts, pairing);
+	element_neg(neg_cts, sig->cts);
+	element_init_Zr(neg_sfs, pairing);
+	element_neg(neg_sfs, sig->sfs);
+	element_init_Zr(neg_sv, pairing);
+	element_neg(neg_sv, sig->sv);
+	element_init_Zr(neg_xjk, pairing);
+	element_neg(neg_xjk, sig->xjk);
+	element_init_Zr(one, pairing);
+	element_set1(one);
+	element_init_Zr(exponent, pairing);
+
+	element_pow2_zn(R1s_hat, Bs, sig->sfs, sig->Ks, neg_cts);
+	element_pow2_zn(R2s_hat, sig->T1, sig->sz, gpk->h2, sig->smu);
+	element_pow3_zn(R2s_hat, R2s_hat, one, sig->T2, sig->cts, sig->T3, neg_cts);
+	element_pow3_zn(R3s_hat, sig->T3, sig->sdelta, 
+			gpk->h1, neg_sfs, gpk->h2, neg_sv);
+	element_mul(exponent, neg_xjk, sig->cts);
+	element_pow3_zn(R3s_hat, R3s_hat, one, gpk->g1, neg_cts, gpk->h3, exponent); 
+	
+	element_clear(neg_cts);
+	element_clear(neg_sfs);
+	element_clear(neg_sv);
+	element_clear(neg_xjk); 
+	element_clear(one);
+	element_clear(exponent);
+	
+	element_t chs_hat;
+	element_init_Zr(chs_hat, pairing);
+
+	Hash2(chs_hat, sig->xjk, Bs, sig->Ks, sig->T1, sig->T2, sig->T3, 
+			R1s_hat, R2s_hat, R3s_hat, NULL, 9);
+	element_clear(Bs);
+	element_clear(R1s_hat);
+	element_clear(R2s_hat);
+	element_clear(R3s_hat);
+
+	unsigned char buffer[32 + sizeof(uint32_t) + strlen(message)];
+	element_to_bytes(buffer, chs_hat);
+	memcpy(buffer + 32, &sig->nts, sizeof(uint32_t));
+	memcpy(buffer + 32 + sizeof(uint32_t), message, strlen(message));
+	
+	unsigned char cts_buf[32];
+	element_t cts_hat;
+	element_init_Zr(cts_hat, pairing);
+	SHA256(buffer, 32 + sizeof(uint32_t) + strlen(message), cts_buf);
+	element_from_bytes(cts_hat, cts_buf);
+
+	if (element_cmp(cts_hat, sig->cts)) {
+		printf("Signature verification failed\n");
+		
+	} else {
+		printf("Verified signature!\n");
+	}
+
+	/* Verify unrevoked */
+	if (atRL != NULL) {
+		// token-based revocation list atRL...
+	}
+
+	return 0;
+}
+
 void clearKeyMaterial(element_t pubTPM, element_t issuerSecret, 
 		struct groupPublicKey *gpk, struct membershipCredential * memCre)
 {
@@ -1107,6 +1394,25 @@ void freeSignCredential(struct signingCredential * signCre)
 	}
 	free(signCre);
 	signCre = NULL;
+}
+
+void freeSignature(struct laserSignature *sig)
+{
+	element_clear(sig->xjk);
+	element_clear(sig->a1s);
+	element_clear(sig->b2s);
+	element_clear(sig->Ks);
+	element_clear(sig->T1);
+	element_clear(sig->T2);
+	element_clear(sig->T3);
+	element_clear(sig->cts);
+	element_clear(sig->sfs);
+	element_clear(sig->sz);
+	element_clear(sig->sdelta);
+	element_clear(sig->smu);
+	element_clear(sig->sv);
+	free(sig);
+	sig = NULL;
 }
 
 int main()
@@ -1240,365 +1546,23 @@ int main()
 	element_clear(yj);
 	freeProofForIssuer(proofForIssuer);
 
+	struct laserSignature *sig = malloc(sizeof(struct laserSignature));
+
+	char * message = "MESSAGE";
+
+	err = signMessage(gpk, pubTPM, signCre->aliasTokenList[0], 
+			message, sig);
+
+	err = verifySignature(gpk, sig, message, NULL);
+
+
 	// clear all the structures and key material, flush handles in TPM
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);
 	freeBaseRL(baseRL);
 	freeSignCredential(signCre);
 	freeRegistry(reg);
+	freeSignature(sig);
 	pairing_clear(pairing);
 	fclose(fp);
 	return 0;
-		
-	/*
-
-	for (i = 0; i < nr; i++) // nr = baseRL
-	{
-		// HOST
-		t0 = pbc_get_time();
-		element_init_G1(Bi[i], pairing);
-
-		curve_data_ptr cdpp = Bi[i]->field->data;
-		point_ptr ppt = Bi[i]->data;
-		element_t t;
-
-		element_init(t, cdpp->field);
-		ppt->inf_flag = 0;
-
-		do {
-			element_random(a2i);
-			memset(jbuf, 0, sizeof jbuf);
-			j = element_to_bytes(jbuf, a2i);
-			SHA256(jbuf, strlen((char *)jbuf), obuf);
-			element_from_hash(c, obuf, 32);
-			element_set(ppt->x, c);
-
-			element_square(t, ppt->x);
-			element_add(t, t, cdpp->a);
-			element_mul(t, t, ppt->x);
-			element_add(t, t, cdpp->b);
-		} while (!element_is_sqr(t));
-		element_sqrt(ppt->y, t);
-		element_clear(t);
-
-		t1 = pbc_get_time();
-		host = host + (t1 - t0);
-		// send (a2i, Bi[i]->y, B0) to the TPM
-
-		// TPM performs
-		// NOAH************************************
-		t0 = pbc_get_time();
-
-		element_init_G1(O[i], pairing);
-		element_pow_zn(O[i], Bi[i], f);
-
-		element_init_G1(S1[i], pairing);
-		element_init_G1(S2[i], pairing);
-		element_init_Zr(rp[i], pairing);
-		element_random(rp[i]);
-		element_pow_zn(S1[i], Bi[i], rp[i]);
-		element_pow_zn(S2[i], B0, rp[i]);
-		// forward (O[i], S1[i], S2[i]) to Host
-
-		t1 = pbc_get_time();
-		tpm = tpm + (t1 - t0);
-
-		// HOST now
-		t0 = pbc_get_time();
-
-		element_init_G1(Ki[i], pairing);
-		element_random(Ki[i]);
-		if (!element_cmp(Ki[i], O[i]))
-			printf("GetSignKey C.1.1 3(a) verification not passed! "
-			       ":/ \n");
-
-		element_init_Zr(tow[i], pairing);
-		element_random(tow[i]);
-		element_invert(Ki[i], Ki[i]);
-		element_init_G1(P[i], pairing);
-		element_mul(P[i], O[i], Ki[i]);
-		element_pow_zn(P[i], P[i], tow[i]);
-
-		element_invert(Ki[i], Ki[i]);
-		element_init_Zr(rt[i], pairing);
-		element_random(rt[i]);
-		element_init_G1(RI[i], pairing);
-		element_init_G1(RII[i], pairing);
-		element_neg(tmpr, rt[i]);
-
-		element_pow2_zn(RI[i], S1[i], tow[i], Ki[i], tmpr);
-		element_pow2_zn(RII[i], S2[i], tow[i], K0, tmpr);
-
-		element_init_Zr(cp[i], pairing);
-		Hash2(cp[i], B0, K0, Bi[i], Ki[i], P[i], RI[i], RII[i], 0, 0, 0,
-		      6);
-
-		// send 'cp[i]' to TPM
-		t1 = pbc_get_time();
-		host = host + (t1 - t0);
-
-		// TPM: "I'm back"
-		// NOAH***************************************
-		t0 = pbc_get_time();
-
-		element_init_Zr(nn[i], pairing);
-		element_random(nn[i]);
-
-		memset(ibuf, 0, sizeof ibuf);
-		memset(jbuf, 0, sizeof jbuf);
-		j = element_to_bytes(ibuf, cp[i]);
-		j = element_to_bytes(jbuf, nn[i]);
-		memcpy(ibuf + lz, jbuf, lz);
-		SHA256(ibuf, strlen((char *)ibuf), obuf);
-		element_init_Zr(cpt[i], pairing);
-		element_from_hash(cpt[i], obuf, 32);
-
-		element_init_Zr(sp[i], pairing);
-		element_mul(sp[i], cpt[i], f);
-		element_add(sp[i], rp[i], sp[i]);
-		// forward (cpt[i], nn[i], sp[i]) to Host
-
-		t1 = pbc_get_time();
-		tpm = tpm + (t1 - t0);
-
-		// HOSTtttttt
-		t0 = pbc_get_time();
-		element_init_Zr(st[i], pairing);
-		element_mul(st[i], cpt[i], tow[i]);
-		element_add(st[i], rt[i], st[i]);
-		element_init_Zr(sv[i], pairing);
-		element_mul(sv[i], sp[i], tow[i]);
-		// output the signature 'sigma-i = (P[i], nn[i], cpt[i], st[i],
-		// sv[i])'
-
-		// Host sends (sig[0],..., sig[nr]) to Issuer
-		t1 = pbc_get_time();
-		host = host + (t1 - t0);
-	}
-
-	// ISSUER to the fore
-	t0 = pbc_get_time();
-
-	element_pairing(tmpt, U1, omega);
-	element_pairing(tmpt2, U2, g2);
-
-	// compute (B0->y) and set 'B0'
-
-	element_neg(tmpc, ct);
-	element_pow2_zn(R1t, B0, sf, K0, tmpc);
-	element_pow3_zn(R2t, h1, sf, h2, sal, L, tmpc);
-
-	element_neg(tmpr, ct);
-	element_pow2_zn(tmp1, U2, ct, U3, tmpr);
-	element_pow3_zn(R3t, U1, sz, h2, sxi, tmp1, one);
-
-	element_neg(tmpc, seta);
-	element_pow2_zn(tmp1, h2, tmpc, g1, tmpr);
-	element_neg(tmpc, sf);
-	element_pow3_zn(R4t, U3, sta, h1, tmpc, tmp1, one);
-
-	Hash2(cj, B0, K0, L, U1, U2, U3, R1t, R2t, R3t, R4t, 9);
-
-	memset(ibuf, 0, sizeof ibuf);
-	memset(jbuf, 0, sizeof jbuf);
-	j = element_to_bytes(ibuf, cj);
-	j = element_to_bytes(jbuf, nt);
-	memcpy(ibuf + lz, jbuf, lz);
-	SHA256(ibuf, strlen((char *)ibuf), obuf);
-	element_from_hash(cq, obuf, 32);
-
-	if (element_cmp(cq, ct))
-		printf(
-		    "\n GetSignKey Issuer 4(c) verification not passed! :O \n");
-
-	for (i = 0; i < nr; i++) {
-		element_neg(tmpr, st[i]);
-		element_neg(tmpc, cpt[i]);
-		element_pow3_zn(RI[i], Bi[i], sv[i], Ki[i], tmpr, P[i], tmpc);
-		element_pow2_zn(RII[i], B0, sv[i], K0, tmpr);
-
-		Hash2(cp[i], B0, K0, Bi[i], Ki[i], P[i], RI[i], RII[i], 0, 0, 0,
-		      6);
-
-		memset(ibuf, 0, sizeof ibuf);
-		memset(jbuf, 0, sizeof jbuf);
-		j = element_to_bytes(ibuf, cp[i]);
-		j = element_to_bytes(jbuf, nn[i]);
-		memcpy(ibuf + lz, jbuf, lz);
-		SHA256(ibuf, strlen((char *)ibuf), obuf);
-		element_init_Zr(cqt[i], pairing);
-		element_from_hash(cqt[i], obuf, 32);
-
-		if (element_cmp(cqt[i], cpt[i]))
-			printf("GetSignKey Issuer 5(Appx.C.1.2) verification "
-			       "not passed! >.< \n");
-
-		if (!element_cmp(P[i], one))
-			printf("GetSignKey Issuer 5(Appx.C.1.2) P[i] equals "
-			       "one! :/ \n");
-	}
-
-	element_mul(tmp1, g1, L);
-
-	for (j = 0; j < k; j++) {
-		element_init_Zr(x[j], pairing);
-		element_init_Zr(beta[j], pairing);
-		element_random(x[j]); // Alias Tokens!
-		element_random(beta[j]);
-
-		element_add(tmpr, gamma, x[j]);
-		element_div(p, one, tmpr);
-
-		element_init_G1(A[j], pairing);
-		element_pow2_zn(A[j], tmp1, one, h2, beta[j]);
-		element_pow_zn(A[j], A[j], p);
-	}
-
-	// append tuple (a10, B0->y, K0, x[0], ..., x[k-1], beta[0], ...,
-	// beta[k-1]) to database reg
-	// send (A[0], ..., A[k-1], x[0], ..., x[k-1], beta[0], ..., beta[k-1])
-	// to Host
-
-	t1 = pbc_get_time();
-	iss = iss + (t1 - t0);
-
-	// HOST hi
-	t0 = pbc_get_time();
-
-	for (i = 0; i < k; i++) {
-		element_init_Zr(y[i], pairing);
-		element_add(y[i], alpha, beta[i]);
-
-		// output signCre[i] = (A[i], x[i], y[i])
-	}
-
-	t1 = pbc_get_time();
-	host = host + (t1 - t0);
-
-	printf("\tTPM, time elapsed %.2fms\n", tpm * 1000);
-	printf("\tHost, time elapsed %.2fms\n", host * 1000);
-	printf("\tIssuer, time elapsed %.2fms\n\n", iss * 1000);
-
-	tpm = 0;
-	host = 0;
-	iss = 0;
-
-	// SelectAliasCre --------------------------------------
-	// select 'aliasCre[jk]' = (A[jk], x[jk], y[jk])
-
-	// Sign --------------------------------------
-	printf("Sign : \n");
-
-	t0 = pbc_get_time();
-
-	// HOST
-	// select tuple choosing k
-	r = rand();
-	r %= k;
-
-	setPoint(D, tw1);
-
-	// send (t2, D->y, h1) to TPM
-	t1 = pbc_get_time();
-	host = host + (t1 - t0);
-
-	// TPM
-	// NOAH**********************************************
-	t0 = pbc_get_time();
-
-	element_pow_zn(E, D, f);
-	element_random(rf);
-	element_pow_zn(S10, D, rf);
-	element_pow_zn(S20, h1, rf);
-	// forward (E, S10, S20) to Host
-
-	t1 = pbc_get_time();
-	tpm = tpm + (t1 - t0) + host;
-
-	// HOST here
-	t0 = pbc_get_time();
-
-	element_random(mu);
-	element_random(delta);
-	element_random(psi);
-	element_mul(v, mu, delta);
-	element_add(v, v, y[r]);
-	element_pow3_zn(hs, g1, one, I, one, h2, y[r]);
-	element_invert(tmpr, delta);
-	element_pow2_zn(T1, A[r], tmpr, g1, psi);
-	element_neg(tmpc, x[r]);
-	element_pow2_zn(T2, A[r], tmpc, hs, one);
-	element_pow2_zn(T2, T2, tmpr, chi, psi);
-	element_pow2_zn(T3, hs, tmpr, h2, mu);
-
-	element_random(rd);
-	element_random(rmu);
-	element_random(rvi);
-	element_random(rpsi);
-
-	element_mul(R1, S10, one);
-	element_neg(tmpr, rpsi);
-	element_pow2_zn(R2, g1, x[r], chi, one);
-	element_pow2_zn(R2, R2, tmpr, h2, rmu);
-
-	element_invert(tmp1, S20);
-	element_neg(tmpc, rvi);
-	element_pow3_zn(R3, T3, rd, tmp1, one, h2, tmpc);
-
-	Hash2(ch, D, E, T1, T2, T3, R1, R2, R3, x[r], 0, 8);
-	// send (ch, M) to TPM
-
-	t1 = pbc_get_time();
---
-	element_clear(R4t);
-	element_clear(tmp1);
-	element_clear(tmp11);
-	element_clear(tmp2);
-	element_clear(tmp22);
-	element_clear(tmpt);
-	element_clear(tmpt2);
-	element_clear(tmpr);
-	element_clear(tmpc);
-	element_clear(f);
-	element_clear(p);
-	element_clear(z);
-	element_clear(delta);
-	element_clear(alpha);
-	element_clear(theta);
-	element_clear(eeta);
-	element_clear(mu);
-	element_clear(v);
-	element_clear(a1j);
-	element_clear(a2i);
-	element_clear(psi);
-	element_clear(rho);
-	element_clear(xi);
-	element_clear(rd);
-	element_clear(rf);
-	element_clear(rz);
-	element_clear(rxi);
-	element_clear(reta);
-	element_clear(ral);
-	element_clear(rta);
-	element_clear(rvi);
-	element_clear(rmu);
-	element_clear(rpsi);
-	element_clear(sd);
-	element_clear(sf);
-	element_clear(sz);
-	element_clear(sxi);
-	element_clear(seta);
-	element_clear(sal);
-	element_clear(sta);
-	element_clear(svi);
-	element_clear(spsi);
-	element_clear(smu);
-	element_clear(ch);
-	element_clear(ct);
-	element_clear(cq);
-	element_clear(cj);
-	element_clear(c);
-	element_clear(one);
-	element_clear(tw1);
-	pairing_clear(pairing);
-	*/
 }

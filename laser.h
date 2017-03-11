@@ -92,7 +92,7 @@ struct registry {
 
 struct laserSignature {
 	element_t xjk;
-	element_t a2s;
+	element_t a1s;
 	element_t b2s;
 	element_t Ks;
 	element_t T1;
@@ -139,4 +139,8 @@ struct sigmaG {
 	struct membershipProof * sigma0;
 	uint32_t entries;
 	struct basenameProof ** proofsOfNonRevocation;
+};
+
+struct aliasTokenRevocationList {
+	int entries;
 };
