@@ -1,8 +1,11 @@
 #include "laser.h"
 #include "laser_tpm.h"
 
-uint64_t aliasTokensPerSignCre = 5, baseRL_entries = 5;
-double t0 = 0, t1 = 0, tpm = 0, host = 0, iss = 0;
+uint64_t aliasTokensPerSignCre = 100, baseRL_entries = 100,
+	 signCredentialsToGen = 100;
+double t0 = 0, t1 = 0, 
+       tpm_online = 0, host_online = 0, issuer_online = 0,
+       tpm_offline = 0, host_offline = 0, issuer_offline = 0;
 static pairing_t pairing;
 static FILE *fp;
 
@@ -110,6 +113,8 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 		element_t pubTPM, uint32_t *ntm, element_t ctm,
 		element_t sfm)
 {
+	double host_offset = 0;
+	t0 = pbc_get_time();
 	TPM_RC rc = 0;
 	element_t Rm;
 	element_t chm;
@@ -135,7 +140,8 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 	
 	// output pubTPM
 	element_from_bytes(pubTPM, I_buf);	
-	tpm += *time_taken;
+	tpm_offline += *time_taken;
+	host_offset += *time_taken;
 
 	/* createMemKeyP2 */
 
@@ -167,7 +173,8 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 		return rc;
 	}
 	element_from_bytes(Rm, Rm_buf);
-	tpm += *time_taken;
+	tpm_offline += *time_taken;
+	host_offset += *time_taken;
 
 	/* createMemKeyP3 4(b) */
 	Hash1(pubTPM, Rm, chm);
@@ -192,12 +199,16 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 	// output ctm, sfm
 	element_from_bytes(ctm, ctm_buf);
 	element_from_bytes(sfm, sfm_buf);
-	tpm += *time_taken;
-	
+	tpm_offline += *time_taken;
+	host_offset += *time_taken;
+
 	free(time_taken);
 	free(commit_cntr);
 	element_clear(Rm);
 	element_clear(chm);
+
+	t1 = pbc_get_time();
+	host_offline += t1 - t0 - host_offset;
 	return 0;
 }
 
@@ -290,6 +301,8 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 		struct membershipCredential *memCre, uint32_t ng, 
 		element_t yj, struct membershipProof *sigma0)
 {
+	t0 = pbc_get_time();
+	double host_offset = 0;
 	TPM_RC rc = 0;
 
 	/* Initialize membershipProof struct */
@@ -335,10 +348,16 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 	if (rc != 0)
 	{
 		perror("getSignKeyP1 failed");
+		free(time_taken);
+		free(commit_cntr);
+		// TODO: What else needs freed here??
 		exit(1);
 	} else
 		printf("getSignKeyP1 complete\n");
 	
+	tpm_offline += *time_taken;
+	host_offset += *time_taken;
+
 	element_from_bytes(sigma0->K0, K0_buf);
 	element_t S10;
 	element_t S20;
@@ -445,10 +464,16 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 			ct0_buf, sf0_buf, time_taken);
 	if (rc != 0) {
 		perror("getSignKeyP2 failed");
+		free(commit_cntr);
+		free(time_taken);
+		element_clear(ch0);
+		// TODO: What else needs freed here??
 		exit(1);
 	}
 	else
 		printf("getSignKeyP2 complete\n");
+	tpm_offline += *time_taken;
+	host_offset += *time_taken;
 	free(commit_cntr);
 	free(time_taken);
 
@@ -490,6 +515,8 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 	element_clear(R30);
 	element_clear(R40);
 	element_clear(ch0);
+	t1 = pbc_get_time();
+	host_offline += t1 - t0 - host_offset;
 	return 0;
 }
 
@@ -551,6 +578,9 @@ void generateBaseRL(int numRevoked, struct basenameRevocationList *baseRL)
 int singleBasenameProof(int index, uint32_t ng,
 	       	struct revocationListEntry *revEntry, struct sigmaG *sigmaG)
 {
+	double host_offset = 0;
+	t0 = pbc_get_time();
+
 	sigmaG->proofsOfNonRevocation[index] = malloc(sizeof(struct basenameProof));
 	struct basenameProof *proof = sigmaG->proofsOfNonRevocation[index];
 	element_init_G1(proof->Pi, pairing);
@@ -598,10 +628,14 @@ int singleBasenameProof(int index, uint32_t ng,
 			commit_cntr, time_taken);
 	if (err != 0) {
 		perror("getSignKeyP3 failed");
+		free(commit_cntr);
+		free(time_taken);
+		// TODO: What else needs freed here??
 		return err;
 	} else
 		printf("getSignKeyP3 complete\n");
-	
+	tpm_offline += *time_taken;
+	host_offset += *time_taken;
 	element_t Oi, S1i, S2i;
 	element_init_G1(Oi, pairing);
 	element_init_G1(S1i, pairing);
@@ -665,10 +699,16 @@ int singleBasenameProof(int index, uint32_t ng,
 		element_clear(taui);
 		element_clear(rtaui);
 		free(commit_cntr);
+		free(time_taken);
+		// TODO: What else needs freed here??
 		return -1;
 	} else
 		printf("getSignKeyP4 complete\n");
+
+	tpm_offline += *time_taken;
+	host_offset += *time_taken;
 	free(commit_cntr);
+	free(time_taken);
 	element_clear(chi);
 	element_from_bytes(proof->cti, cti_buf);
 	
@@ -684,6 +724,8 @@ int singleBasenameProof(int index, uint32_t ng,
 	element_clear(sfi);
 	element_clear(taui);
 	element_clear(rtaui);
+	t1 = pbc_get_time();
+	host_offline += t1 - t0 - host_offset;
 	return 0;
 }	
 
@@ -1028,6 +1070,8 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 		struct aliasCredential *alias, char *message,
 		struct laserSignature *sig)
 {
+	double host_offset = 0;
+	t0 = pbc_get_time();
 	int err;
 	TPM_RC rc = 0;
 
@@ -1056,15 +1100,19 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 	unsigned char Ks_buf[64];
 	unsigned char S1s_buf[64];
 	unsigned char S2s_buf[64];	
-	rc = getSignKeyP3(h1_buf, h1_buf + 32, a1s_buf, b2s_buf,
+	rc = signP1(h1_buf, h1_buf + 32, a1s_buf, b2s_buf,
 		Ks_buf, Ks_buf + 32, S1s_buf, S1s_buf + 32, 
 		S2s_buf, S2s_buf + 32, commit_cntr, time_taken);
 	if (rc != 0) {
 		perror("signP1 failed");
+		free(time_taken);
+		free(commit_cntr);
+		// TODO: What else needs freed here??	
 		return rc;
 	} else
 		printf("signP1 complete\n");
-	
+	host_offset += *time_taken;
+	tpm_online += *time_taken;
 	element_t S1s, S2s;
 	element_init_G1(S1s, pairing);
 	element_init_G1(S2s, pairing);
@@ -1151,8 +1199,13 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 			sfs_buf, cts_buf, time_taken);
 	if (rc != 0) {
 		perror("signP2 failed");
+		free(time_taken);
+		free(commit_cntr);
+		// TODO: What else needs freed here??
 		return rc;
 	}
+	host_offset += *time_taken;
+	tpm_online += *time_taken;
 	element_from_bytes(sig->sfs, sfs_buf);
 	element_from_bytes(sig->cts, cts_buf);
 
@@ -1187,6 +1240,8 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 	element_clear(S2s);
 	free(commit_cntr);
 	free(time_taken);
+	t1 = pbc_get_time();
+	host_online += t1 - t0 - host_offset;
 	return 0;
 }
 
@@ -1417,6 +1472,7 @@ void freeSignature(struct laserSignature *sig)
 
 int main()
 {
+	t0 = pbc_get_time();
 	// init pairing, declare error variables
 	pairing_init_set_str(pairing, bncurve);
 	int err = 0;
@@ -1453,6 +1509,8 @@ int main()
 		perror("malloc failed");
 		exit(1);
 	}
+	t1 = pbc_get_time();
+	issuer_offline += t1 - t0;
 
 	element_t pubTPM;
 	element_t ctm;
@@ -1467,7 +1525,8 @@ int main()
 		perror("problem in createMemKeyHost");
 		exit(1);
 	}
-
+	
+	t0 = pbc_get_time();
 	// and sends (nm, sigma-m) to Issuer. Issuer returns memCre
 	struct membershipCredential * memCre = malloc(
 				sizeof(struct membershipCredential));
@@ -1486,9 +1545,11 @@ int main()
 	element_clear(ctm);
 	element_clear(sfm);
 	free(ntm);
-
+	t1 = pbc_get_time();
+	issuer_offline += t1 - t0;
 	/* Join done. Membership credential obtained, next getSignCre */
 	
+	t0 = pbc_get_time();
 	uint32_t ng; 
 	err = fread(&ng, 4, 1, fp);
 	if (err != 1) {
@@ -1508,11 +1569,14 @@ int main()
 	}
 	
 	element_t yj; 
+	t1 = pbc_get_time();
+	host_offline += t1 - t0;
 	err = proveMembership(pubTPM, gpk, memCre, ng, yj, proofForIssuer->sigma0);
 	if (err != 0) {
 		perror("proveMembership failed");
 		exit(1);
 	}
+	t0 = pbc_get_time();
 	printf("Membership proof made\n");
 
 	struct basenameRevocationList * baseRL = 
@@ -1522,26 +1586,32 @@ int main()
 
 	proofForIssuer->entries = baseRL_entries;
 	printf("Proof for issuer made\n");
-
+	t1 = pbc_get_time();
+	host_offline += t1 - t0;
 	err = proveUnrevokedBasename(baseRL, ng, proofForIssuer);
 	if (err != 0) {
 		perror("proveUnrevokedBasename failed");
 		exit(1);
 	}
+	t0 = pbc_get_time();
 	printf("Unrevoked basename returns\n");
 
 	issuerValidationGetSignCre(baseRL, proofForIssuer, gpk, ng);
 	printf("Validation complete\n");
 
+	// TODO: Generate 100 signing credentials instead of 1. 100 alias tokens each
 	struct registry *reg = malloc(sizeof(struct registry));
 	reg->entries = 0;
 	struct signingCredential *signCre = malloc(sizeof(struct signingCredential));
 
 	issuerAliasTokenGeneration(gpk, issuerSecret, proofForIssuer, reg, signCre);
 	printf("Alias Tokens generated\n");
+	t1 = pbc_get_time();
+	issuer_offline += t1 - t0;
 
 	platformFinishTokens(signCre, yj);
 
+	t0 = pbc_get_time();
 	/* End of getSignCre. Can free yj since its now copied into all the alias credentials */
 	element_clear(yj);
 	freeProofForIssuer(proofForIssuer);
@@ -1550,11 +1620,14 @@ int main()
 
 	char * message = "MESSAGE";
 
+	t1 = pbc_get_time();
+	host_online += t1 - t0;
 	err = signMessage(gpk, pubTPM, signCre->aliasTokenList[0], 
 			message, sig);
-
+	t0 = pbc_get_time();
 	err = verifySignature(gpk, sig, message, NULL);
-
+	t1 = pbc_get_time();
+	issuer_online += t1 - t0;
 
 	// clear all the structures and key material, flush handles in TPM
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);
@@ -1564,5 +1637,11 @@ int main()
 	freeSignature(sig);
 	pairing_clear(pairing);
 	fclose(fp);
+	printf("TPM Offline: %.2fms\n", tpm_offline * 1000);
+	printf("Host Offline: %.2fms\n", host_offline * 1000);
+	printf("Issuer Offline: %.2fms\n", issuer_offline * 1000);
+	printf("TPM Online: %.2fms\n", tpm_online * 1000);
+	printf("Host Online: %.2fms\n", host_online * 1000);
+	printf("Issuer Online: %.2fms\n", issuer_online * 1000);
 	return 0;
 }
