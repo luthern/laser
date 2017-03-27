@@ -41,10 +41,10 @@ TPM_RC createMemKeyP3(
 TPM_RC getSignKeyP1(
 			unsigned char *h1_x,
 			unsigned char *h1_y,
-			unsigned char *bj,
-			unsigned char *d2j,
-			unsigned char *Ej_x,
-			unsigned char *Ej_y,
+			unsigned char *a10,
+			unsigned char *b20,
+			unsigned char *K0_x,
+			unsigned char *K0_y,
 			unsigned char *S10_x,
 			unsigned char *S10_y,
 			unsigned char *S20_x,
@@ -56,15 +56,15 @@ TPM_RC getSignKeyP2(
 			uint16_t cntr,
 			uint32_t nonce, // how to gen on TPM??
 			unsigned char *ch0,
-			unsigned char *cg0,
-			unsigned char *sfg,
+			unsigned char *ct0,
+			unsigned char *sf0,
 			double *time_taken
 		   );
 TPM_RC getSignKeyP3(
-			unsigned char *Dj_x,
-			unsigned char *Dj_y,
-			unsigned char *bi,
-			unsigned char *d2i,
+			unsigned char *B0_x,
+			unsigned char *B0_y,
+			unsigned char *a1i,
+			unsigned char *b2i,
 			unsigned char *Oi_x,
 			unsigned char *Oi_y,
 			unsigned char *S1i_x,
@@ -78,17 +78,17 @@ TPM_RC getSignKeyP4(
 			uint16_t cntr,
 			uint32_t nonce,
 			unsigned char *chi,
-			unsigned char *cgi,
+			unsigned char *cti,
 			unsigned char *sfi,
 			double *time_taken
 		   );
 TPM_RC signP1(
 			unsigned char *h1_x,
 			unsigned char *h1_y,
-			unsigned char *xjk,
-			unsigned char *d2,
-			unsigned char *E_x,
-			unsigned char *E_y,
+			unsigned char *a1s,
+			unsigned char *b2s,
+			unsigned char *Ks_x,
+			unsigned char *Ks_y,
 			unsigned char *S1s_x,
 			unsigned char *S1s_y,
 			unsigned char *S2s_x,
@@ -102,8 +102,8 @@ TPM_RC signP2(
 			unsigned char *chs,
 			char *M,
 			uint32_t M_len,
-			unsigned char *sfs,
 			unsigned char *cts,
+			unsigned char *sfs,
 			double *time_taken
 	     );
 TPM_RC commit_helper(

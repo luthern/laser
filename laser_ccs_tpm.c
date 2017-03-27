@@ -2,7 +2,7 @@
 #include "laser_tpm.h"
 
 uint64_t aliasTokensPerSignCre = 100, baseRL_entries = 100,
-	 signCredentialsToGen = 100;
+	 signCredentialsToGen = 2;
 double t0 = 0, t1 = 0, 
        tpm_online = 0, host_online = 0, issuer_online = 0,
        tpm_offline = 0, host_offline = 0, issuer_offline = 0;
@@ -48,6 +48,7 @@ void Hash2(element_t z, element_t B, element_t K, element_t L, element_t Uo,
 	   element_t Ut, element_t Ue, element_t Ro, element_t Rt, element_t Re,
 	   element_t Rf, int q)
 {
+	uint64_t length;
 	memset(ibuf, 0, sizeof ibuf);
 	memset(jbuf, 0, sizeof jbuf);
 	element_to_bytes(ibuf, B);
@@ -63,19 +64,22 @@ void Hash2(element_t z, element_t B, element_t K, element_t L, element_t Uo,
 	memcpy(ibuf + 5 * l1, jbuf, l1);
 	element_to_bytes(jbuf, Ro);
 	memcpy(ibuf + 6 * l1, jbuf, l1);
+	length = 6 * l1;
 
 	if (q > 7) {
 		element_to_bytes(jbuf, Rt);
 		memcpy(ibuf + 7 * l1, jbuf, l1);
 		element_to_bytes(jbuf, Re);
 		memcpy(ibuf + 8 * l1, jbuf, l1);
+		length += 2 * l1;
 	}
 	if (q > 9) {
 		element_to_bytes(jbuf, Rf);
 		memcpy(ibuf + 9 * l1, jbuf, l1);
+		length += l1;
 	}
 
-	SHA256(ibuf, strlen((char *)ibuf), obuf);
+	SHA256(ibuf, length, obuf);
 	element_from_hash(z, obuf, 32);
 }
 
@@ -572,7 +576,6 @@ void generateBaseRL(int numRevoked, struct basenameRevocationList *baseRL)
 	for (i = 0; i < numRevoked; i++) {
 		addRandomRevocationListEntry(baseRL);
 	}
-	printf("Entries in revocation list: %d\n", baseRL->entries);
 }
 
 int singleBasenameProof(int index, uint32_t ng,
@@ -632,8 +635,9 @@ int singleBasenameProof(int index, uint32_t ng,
 		free(time_taken);
 		// TODO: What else needs freed here??
 		return err;
-	} else
-		printf("getSignKeyP3 complete\n");
+	} 
+	//else
+	//	printf("getSignKeyP3 complete\n");
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
 	element_t Oi, S1i, S2i;
@@ -648,9 +652,10 @@ int singleBasenameProof(int index, uint32_t ng,
 	
 	if (!element_cmp(revEntry->Ki, Oi)) {
 		printf("GetSignCre (4)(c) verification not passed!\n");
-	} else {
-		printf("GetSignCre (4)(c) passed\n");
-	}
+	} 
+	//else {
+	//	printf("GetSignCre (4)(c) passed\n");
+	//}
 
 	element_t taui;
 	element_t rtaui;
@@ -702,8 +707,9 @@ int singleBasenameProof(int index, uint32_t ng,
 		free(time_taken);
 		// TODO: What else needs freed here??
 		return -1;
-	} else
-		printf("getSignKeyP4 complete\n");
+	} 
+	//else
+	//	printf("getSignKeyP4 complete\n");
 
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
@@ -758,16 +764,17 @@ int issuerValidateMembership(struct membershipProof *sigma0,
 	element_init_GT(pairing_U2_g2, pairing);
 	element_pairing(pairing_U1_omega, sigma0->U1, gpk->omega);
 	element_pairing(pairing_U2_g2, sigma0->U2, gpk->g2);
-
+	
 	/* Compare returns 0 if they are the same entity */
 	if (element_cmp(pairing_U1_omega, pairing_U2_g2)) {
 		printf("Issuer verification of membership (6)(a) not passed\n");
 		element_clear(pairing_U1_omega);
 		element_clear(pairing_U2_g2);
 		return 1;
-	} else {
-		printf("Issuer verification of membership (6)(a) passed\n");
-	}
+	} 
+	//else {
+	//	printf("Issuer verification of membership (6)(a) passed\n");
+	//}
 	
 	element_clear(pairing_U1_omega);
 	element_clear(pairing_U2_g2);
@@ -846,9 +853,10 @@ int issuerValidateMembership(struct membershipProof *sigma0,
 		element_clear(ct0_hat);
 		element_clear(ch0_hat);
 		return 1;
-	} else {
-		printf("GetSignKey Issuer Membership Verification (6)(d) passed!\n");
-	}
+	} 
+	//else {
+	//	printf("GetSignKey Issuer Membership Verification (6)(d) passed!\n");
+	//}
 	element_clear(ct0_hat);
 	element_clear(ch0_hat);
 	return 0;
@@ -1196,7 +1204,7 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 	unsigned char cts_buf[64];
 
 	rc = signP2(*commit_cntr, sig->nts, chs_buf, message, strlen(message), 
-			sfs_buf, cts_buf, time_taken);
+			cts_buf, sfs_buf, time_taken);
 	if (rc != 0) {
 		perror("signP2 failed");
 		free(time_taken);
@@ -1549,79 +1557,90 @@ int main()
 	issuer_offline += t1 - t0;
 	/* Join done. Membership credential obtained, next getSignCre */
 	
-	t0 = pbc_get_time();
-	uint32_t ng; 
-	err = fread(&ng, 4, 1, fp);
-	if (err != 1) {
-		perror("read urandom failed");
-		exit(1);
-	}	
-
-	struct sigmaG *proofForIssuer = malloc(sizeof(struct sigmaG));
-	if (proofForIssuer == NULL) {
-		perror("malloc failed");
-		exit(1);
-	}
-	proofForIssuer->sigma0 = malloc(sizeof(struct membershipProof));
-	if (proofForIssuer->sigma0 == NULL) {
-		perror("malloc failed");
-		exit(1);
-	}
-	
-	element_t yj; 
-	t1 = pbc_get_time();
-	host_offline += t1 - t0;
-	err = proveMembership(pubTPM, gpk, memCre, ng, yj, proofForIssuer->sigma0);
-	if (err != 0) {
-		perror("proveMembership failed");
-		exit(1);
-	}
-	t0 = pbc_get_time();
-	printf("Membership proof made\n");
-
+	// Generate BaseRL once
 	struct basenameRevocationList * baseRL = 
-		malloc(sizeof(struct basenameRevocationList));
+			malloc(sizeof(struct basenameRevocationList));
 	generateBaseRL(baseRL_entries, baseRL);
 	printf("BaseRL generated \n");
 
-	proofForIssuer->entries = baseRL_entries;
-	printf("Proof for issuer made\n");
-	t1 = pbc_get_time();
-	host_offline += t1 - t0;
-	err = proveUnrevokedBasename(baseRL, ng, proofForIssuer);
-	if (err != 0) {
-		perror("proveUnrevokedBasename failed");
-		exit(1);
+	// TODO: Generate variable signing credentials instead of 1. 100 alias tokens each
+	struct signingCredential *signCre; 
+	int i;
+	for (i = 0; i < signCredentialsToGen; i++) {
+		t0 = pbc_get_time();
+		uint32_t ng; 
+		err = fread(&ng, 4, 1, fp);
+		if (err != 1) {
+			perror("read urandom failed");
+			exit(1);
+		}	
+
+		struct sigmaG *proofForIssuer = malloc(sizeof(struct sigmaG));
+		if (proofForIssuer == NULL) {
+			perror("malloc failed");
+			exit(1);
+		}
+		proofForIssuer->sigma0 = malloc(sizeof(struct membershipProof));
+		if (proofForIssuer->sigma0 == NULL) {
+			perror("malloc failed");
+			exit(1);
+		}
+		
+		element_t yj; 
+		t1 = pbc_get_time();
+		host_offline += t1 - t0;
+		err = proveMembership(pubTPM, gpk, memCre, ng, yj, proofForIssuer->sigma0);
+		if (err != 0) {
+			perror("proveMembership failed");
+			exit(1);
+		}
+		//printf("Membership proof made\n");
+	
+		proofForIssuer->entries = baseRL_entries;
+		err = proveUnrevokedBasename(baseRL, ng, proofForIssuer);
+		if (err != 0) {
+			perror("proveUnrevokedBasename failed");
+			exit(1);
+		}
+		t0 = pbc_get_time();
+		//printf("Unrevoked basename returns\n");
+
+		issuerValidationGetSignCre(baseRL, proofForIssuer, gpk, ng);
+		//printf("Validation of SignCre complete\n");
+
+		struct registry *reg = malloc(sizeof(struct registry));
+		reg->entries = 0;
+		struct signingCredential *signCre = malloc(sizeof(struct signingCredential));
+
+		issuerAliasTokenGeneration(gpk, issuerSecret, proofForIssuer, reg, signCre);
+		//printf("Alias Tokens generated\n");
+		t1 = pbc_get_time();
+		issuer_offline += t1 - t0;
+
+		platformFinishTokens(signCre, yj);
+
+		t0 = pbc_get_time();
+		/* End of getSignCre. Can free yj since its now copied into all the alias credentials */
+		element_clear(yj);
+		freeProofForIssuer(proofForIssuer);
+		freeRegistry(reg);
+		// Clear sign credential unless it's the last one
+		// We use the last one for a signature
+		if (i != signCredentialsToGen - 1) {	
+			freeSignCredential(signCre);
+			printf("Freeing signCre %d\n", i);
+		}
+		else
+			printf("SignCre %d generated\n", i);
 	}
-	t0 = pbc_get_time();
-	printf("Unrevoked basename returns\n");
-
-	issuerValidationGetSignCre(baseRL, proofForIssuer, gpk, ng);
-	printf("Validation complete\n");
-
-	// TODO: Generate 100 signing credentials instead of 1. 100 alias tokens each
-	struct registry *reg = malloc(sizeof(struct registry));
-	reg->entries = 0;
-	struct signingCredential *signCre = malloc(sizeof(struct signingCredential));
-
-	issuerAliasTokenGeneration(gpk, issuerSecret, proofForIssuer, reg, signCre);
-	printf("Alias Tokens generated\n");
-	t1 = pbc_get_time();
-	issuer_offline += t1 - t0;
-
-	platformFinishTokens(signCre, yj);
-
-	t0 = pbc_get_time();
-	/* End of getSignCre. Can free yj since its now copied into all the alias credentials */
-	element_clear(yj);
-	freeProofForIssuer(proofForIssuer);
 
 	struct laserSignature *sig = malloc(sizeof(struct laserSignature));
-
 	char * message = "MESSAGE";
 
 	t1 = pbc_get_time();
 	host_online += t1 - t0;
+	if (signCre == NULL)
+		printf("WAT! signCre freed\n");
 	err = signMessage(gpk, pubTPM, signCre->aliasTokenList[0], 
 			message, sig);
 	t0 = pbc_get_time();
@@ -1632,8 +1651,6 @@ int main()
 	// clear all the structures and key material, flush handles in TPM
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);
 	freeBaseRL(baseRL);
-	freeSignCredential(signCre);
-	freeRegistry(reg);
 	freeSignature(sig);
 	pairing_clear(pairing);
 	fclose(fp);

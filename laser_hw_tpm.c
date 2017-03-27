@@ -152,6 +152,58 @@ TPM_RC sign_helper(
 	return rc;
 }
 
+TPM_RC getRandomNonce(uint32_t *nonce)
+{
+	TPM_RC			rc = 0;
+	GetRandom_In		in;
+	GetRandom_Out		out;
+	uint32_t 		bytesRequested = sizeof(uint32_t);
+	uint32_t		bytesCopied = 0;
+	
+	if (rc == 0)
+		in.bytesRequested = bytesRequested;
+
+	for (bytesCopied = 0 ; (rc == 0) && (bytesCopied < bytesRequested) ; ) {
+		/* Request whatever is left */
+		if (rc == 0) {
+		    in.bytesRequested = bytesRequested - bytesCopied;
+		}
+		/* call TSS to execute the command */
+		if (rc == 0) {
+		    rc = TSS_Execute(tssContext,
+				     (RESPONSE_PARAMETERS *)&out, 
+				     (COMMAND_PARAMETERS *)&in,
+				     NULL,
+				     TPM_CC_GetRandom,
+				     TPM_RH_NULL, NULL, 0,
+				     TPM_RH_NULL, NULL, 0,
+				     TPM_RH_NULL, NULL, 0,
+				     TPM_RH_NULL, NULL, 0);
+		}
+		if (rc == 0) {
+		    size_t i;
+		    /* copy as many bytes as were received or until bytes requested */
+		    for (i = 0 ; (i < out.randomBytes.t.size) && (bytesCopied < bytesRequested) ; i++) {
+
+			if ((out.randomBytes.t.buffer[i] != 0)) {
+			    memcpy(((void *) nonce) + bytesCopied, &out.randomBytes.t.buffer[i], 1);
+			    bytesCopied++;
+			}
+		    }
+		}
+	}
+	if (rc != 0) {
+		const char *msg;
+		const char *submsg;
+		const char *num;
+		printf("getRandomNonce: failed, rc %08x\n", rc);
+		TSS_ResponseCode_toString(&msg, &submsg, &num, rc);
+		printf("%s%s%s\n", msg, submsg, num);
+		rc = EXIT_FAILURE;
+	}
+	return rc;
+}
+
 TPM_RC createMemKeyP1(	
 			unsigned char *I_x,
 			unsigned char *I_y,
@@ -328,10 +380,10 @@ TPM_RC createMemKeyP3(
 TPM_RC getSignKeyP1(
 			unsigned char *h1_x,
 			unsigned char *h1_y,
-			unsigned char *bj,
-			unsigned char *d2j,
-			unsigned char *Ej_x,
-			unsigned char *Ej_y,
+			unsigned char *a10,
+			unsigned char *b20,
+			unsigned char *K0_x,
+			unsigned char *K0_y,
 			unsigned char *S10_x,
 			unsigned char *S10_y,
 			unsigned char *S20_x,
@@ -342,7 +394,7 @@ TPM_RC getSignKeyP1(
 {
 	TPM_RC rc = 0;
 	rc = commit_helper(
-			h1_x, h1_y, bj, d2j, Ej_x, Ej_y, S10_x, S10_y,
+			h1_x, h1_y, a10, b20, K0_x, K0_y, S10_x, S10_y,
 			S20_x, S20_y, cntr, time_taken);
 	if (rc != 0) {
 		const char *msg;
@@ -360,13 +412,13 @@ TPM_RC getSignKeyP2(
 			uint16_t cntr,
 			uint32_t nonce,
 			unsigned char *ch0,
-			unsigned char *cg0,
-			unsigned char *sfg,
+			unsigned char *ct0,
+			unsigned char *sf0,
 			double *time_taken
 		   )
 {
 	TPM_RC rc = 0;
-	rc = sign_helper(cntr, nonce, ch0, NULL, 0, cg0, sfg, time_taken);
+	rc = sign_helper(cntr, nonce, ch0, NULL, 0, ct0, sf0, time_taken);
 	if (rc != 0) {
 		const char *msg;
 		const char *submsg;
@@ -380,10 +432,10 @@ TPM_RC getSignKeyP2(
 }
 
 TPM_RC getSignKeyP3(
-			unsigned char *Dj_x,
-			unsigned char *Dj_y,
-			unsigned char *bi,
-			unsigned char *d2i,
+			unsigned char *B0_x,
+			unsigned char *B0_y,
+			unsigned char *a1i,
+			unsigned char *b2i,
 			unsigned char *Oi_x,
 			unsigned char *Oi_y,
 			unsigned char *S1i_x,
@@ -396,7 +448,7 @@ TPM_RC getSignKeyP3(
 {
 	TPM_RC rc = 0;
 	rc = commit_helper(
-			Dj_x, Dj_y, bi, d2i, Oi_x, Oi_y, S1i_x, S1i_y,
+			B0_x, B0_y, a1i, b2i, Oi_x, Oi_y, S1i_x, S1i_y,
 			S2i_x, S2i_y, cntr, time_taken);
 	if (rc != 0) {
 		const char *msg;
@@ -414,13 +466,13 @@ TPM_RC getSignKeyP4(
 			uint16_t cntr,
 			uint32_t nonce,
 			unsigned char *chi,
-			unsigned char *cgi,
+			unsigned char *cti,
 			unsigned char *sfi,
 			double *time_taken
 		   )
 {
 	TPM_RC rc = 0;
-	rc = sign_helper(cntr, nonce, chi, NULL, 0, cgi, sfi, time_taken);
+	rc = sign_helper(cntr, nonce, chi, NULL, 0, cti, sfi, time_taken);
 	if (rc != 0) {
 		const char *msg;
 		const char *submsg;
@@ -436,10 +488,10 @@ TPM_RC getSignKeyP4(
 TPM_RC signP1(
 			unsigned char *h1_x,
 			unsigned char *h1_y,
-			unsigned char *xjk,
-			unsigned char *d2,
-			unsigned char *E_x,
-			unsigned char *E_y,
+			unsigned char *a1s,
+			unsigned char *b2s,
+			unsigned char *Ks_x,
+			unsigned char *Ks_y,
 			unsigned char *S1s_x,
 			unsigned char *S1s_y,
 			unsigned char *S2s_x,
@@ -450,7 +502,7 @@ TPM_RC signP1(
 {
 	TPM_RC rc = 0;
 	rc = commit_helper(
-			h1_x, h1_y, xjk, d2, E_x, E_y, S1s_x, S1s_y,
+			h1_x, h1_y, a1s, b2s, Ks_x, Ks_y, S1s_x, S1s_y,
 			S2s_x, S2s_y, cntr, time_taken);
 	if (rc != 0) {
 		const char *msg;
@@ -470,8 +522,8 @@ TPM_RC signP2(
 			unsigned char *chs,
 			char *M,
 			uint32_t M_len,
-			unsigned char *sfs,
 			unsigned char *cts,
+			unsigned char *sfs,
 			double *time_taken
 	     )
 {
