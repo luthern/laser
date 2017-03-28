@@ -88,6 +88,7 @@ TPM_RC sign_helper(
 			unsigned char *hash,
 			char *msg,
 			uint32_t msg_len,
+			uint32_t *nonce_gen,
 			unsigned char *r,
 			unsigned char *s,
 			double *time_taken
@@ -102,17 +103,30 @@ TPM_RC sign_helper(
 	uint16_t 			messageLength; 
 	unsigned char			*message;
 	TPMT_HA				digest;
+	uint16_t			nonce_len = 0;
+	uint16_t			nonce_gen_len = 0;
 	
+	if (nonce != 0)
+		nonce_len = sizeof(uint32_t);
+
+	if (nonce_gen != NULL) {
+		rc = getRandomNonce(nonce_gen);
+		nonce_gen_len = sizeof(uint32_t);
+	}
 	/* Produce digest that will be signed */ 
 	if (rc == 0) {
 		digest.hashAlg = halg;
 		sizeInBytes = TSS_GetDigestSize(digest.hashAlg);
-		messageLength = sizeInBytes + sizeof(uint32_t) + msg_len;
+		messageLength = sizeInBytes + nonce_len 
+			+ nonce_gen_len + msg_len;
 		message = malloc(messageLength);
 		memcpy(message, hash, sizeInBytes);
-		memcpy(message + sizeInBytes, &nonce, sizeof(uint32_t));
+		memcpy(message + sizeInBytes, nonce_gen, nonce_gen_len);
+		memcpy(message + sizeInBytes + nonce_gen_len, 
+					&nonce, nonce_len);
 		if (msg != NULL && msg_len != 0) {
-			memcpy(message + sizeInBytes + sizeof(uint32_t), msg, msg_len);	
+			memcpy(message + sizeInBytes + 
+				nonce_gen_len + nonce_len, msg, msg_len);
 		}
 		rc = TSS_Hash_Generate(&digest, messageLength, message, 0, NULL);
 		free(message);
@@ -204,7 +218,7 @@ TPM_RC getRandomNonce(uint32_t *nonce)
 	return rc;
 }
 
-TPM_RC createMemKeyP1(	
+TPM_RC joinP1(	
 			unsigned char *I_x,
 			unsigned char *I_y,
 			double *time_taken
@@ -278,19 +292,6 @@ TPM_RC createMemKeyP1(
 		createPrimaryIn.inPublic.publicArea.parameters.eccDetail.scheme.details.ecdaa.hashAlg = halg;
 		createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.size = 0;
 		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 0;
-
-		//unsigned char onebuf[32] = {0x00};
-		//onebuf[31] = 0x01;
-		//unsigned char twobuf[32] = {0x00};
-		//twobuf[31] = 0x02;
-		/* It appears to make no difference if I set publicArea.unique.ecc or not... */
-		/*
-		unsigned char onebuf[32] = {0xf9,0x60,0xa1,0x77,0xf4,0xbc,0x4c,0xe6,0xdf,0x76,0x99,0xce,0xb8,0xfa,0x74,0x47,0x3a,0xa5,0xad,0xad,0x4b,0x49,0xd9,0xdf,0xb7,0x14,0x35,0x7c,0x21,0x9e,0xb6,0x0c};
-		unsigned char twobuf[32] = {0xe0,0x54,0xcf,0x38,0x1e,0x5e,0xeb,0x78,0x5b,0x3e,0xf6,0x83,0x05,0x49,0xe4,0x74,0x93,0x5e,0x19,0xa7,0xda,0x46,0x00,0x8a,0xd1,0xa4,0x4c,0xc0,0xf6,0x94,0xf7,0x50};
-		memcpy(createPrimaryIn.inPublic.publicArea.unique.ecc.x.t.buffer, onebuf, 32);
-		createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.size = 32;
-		memcpy(createPrimaryIn.inPublic.publicArea.unique.ecc.y.t.buffer, twobuf, 32);
-		*/
 		createPrimaryIn.outsideInfo.t.size = 0;
 		createPrimaryIn.creationPCR.count = 0;
 	}
@@ -321,7 +322,7 @@ TPM_RC createMemKeyP1(
 		const char *msg;
 		const char *submsg;
 		const char *num;
-		printf("createMemKeyP1: failed, rc %08x\n", rc);
+		printf("joinP1: failed, rc %08x\n", rc);
 		TSS_ResponseCode_toString(&msg, &submsg, &num, rc);
 		printf("%s%s%s\n", msg, submsg, num);
 		rc = EXIT_FAILURE;
@@ -329,7 +330,7 @@ TPM_RC createMemKeyP1(
 	return rc;
 }
 
-TPM_RC createMemKeyP2(
+TPM_RC joinP2(
 			unsigned char *h1_x,
 			unsigned char *h1_y,
 			unsigned char *Rm_x,
@@ -346,7 +347,7 @@ TPM_RC createMemKeyP2(
 		const char *msg;
 		const char *submsg;
 		const char *num;
-		printf("createMemKeyP2: failed, rc %08x\n", rc);
+		printf("joinP2: failed, rc %08x\n", rc);
 		TSS_ResponseCode_toString(&msg, &submsg, &num, rc);
 		printf("%s%s%s\n", msg, submsg, num);
 		rc = EXIT_FAILURE;
@@ -354,22 +355,23 @@ TPM_RC createMemKeyP2(
 	return rc;
 }
 
-TPM_RC createMemKeyP3(  
+TPM_RC joinP3(  
 			uint16_t cntr,
-			uint32_t nonce,
+			uint32_t nm,
 			unsigned char *chm,
+			uint32_t *ntm,
 			unsigned char *ctm,
 			unsigned char *sfm,
 			double *time_taken
 			)
 {
 	TPM_RC rc = 0;
-	rc = sign_helper(cntr, nonce, chm, NULL, 0, ctm, sfm, time_taken);
+	rc = sign_helper(cntr, nm, chm, NULL, 0, ntm, ctm, sfm, time_taken);
 	if (rc != 0) {
 		const char *msg;
 		const char *submsg;
 		const char *num;
-		printf("createMemKeyP3: failed, rc %08x\n", rc);
+		printf("joinP3: failed, rc %08x\n", rc);
 		TSS_ResponseCode_toString(&msg, &submsg, &num, rc);
 		printf("%s%s%s\n", msg, submsg, num);
 		rc = EXIT_FAILURE;
@@ -377,7 +379,7 @@ TPM_RC createMemKeyP3(
 	return rc;
 }
 
-TPM_RC getSignKeyP1(
+TPM_RC getSignCreP1(
 			unsigned char *h1_x,
 			unsigned char *h1_y,
 			unsigned char *a10,
@@ -400,7 +402,7 @@ TPM_RC getSignKeyP1(
 		const char *msg;
 		const char *submsg;
 		const char *num;
-		printf("getSignKeyP1: failed, rc %08x\n", rc);
+		printf("getSignCreP1: failed, rc %08x\n", rc);
 		TSS_ResponseCode_toString(&msg, &submsg, &num, rc);
 		printf("%s%s%s\n", msg, submsg, num);
 		rc = EXIT_FAILURE;
@@ -408,22 +410,23 @@ TPM_RC getSignKeyP1(
 	return rc;
 }
 
-TPM_RC getSignKeyP2(
+TPM_RC getSignCreP2(
 			uint16_t cntr,
-			uint32_t nonce,
+			uint32_t ng,
 			unsigned char *ch0,
+			uint32_t *nt0,
 			unsigned char *ct0,
 			unsigned char *sf0,
 			double *time_taken
 		   )
 {
 	TPM_RC rc = 0;
-	rc = sign_helper(cntr, nonce, ch0, NULL, 0, ct0, sf0, time_taken);
+	rc = sign_helper(cntr, ng, ch0, NULL, 0, nt0, ct0, sf0, time_taken);
 	if (rc != 0) {
 		const char *msg;
 		const char *submsg;
 		const char *num;
-		printf("getSignKeyP2: failed, rc %08x\n", rc);
+		printf("getSignCreP2: failed, rc %08x\n", rc);
 		TSS_ResponseCode_toString(&msg, &submsg, &num, rc);
 		printf("%s%s%s\n", msg, submsg, num);
 		rc = EXIT_FAILURE;
@@ -431,7 +434,7 @@ TPM_RC getSignKeyP2(
 	return rc;
 }
 
-TPM_RC getSignKeyP3(
+TPM_RC getSignCreP3(
 			unsigned char *B0_x,
 			unsigned char *B0_y,
 			unsigned char *a1i,
@@ -454,7 +457,7 @@ TPM_RC getSignKeyP3(
 		const char *msg;
 		const char *submsg;
 		const char *num;
-		printf("getSignKeyP3: failed, rc %08x\n", rc);
+		printf("getSignCreP3: failed, rc %08x\n", rc);
 		TSS_ResponseCode_toString(&msg, &submsg, &num, rc);
 		printf("%s%s%s\n", msg, submsg, num);
 		rc = EXIT_FAILURE;
@@ -462,22 +465,23 @@ TPM_RC getSignKeyP3(
 	return rc;
 }
 
-TPM_RC getSignKeyP4(
+TPM_RC getSignCreP4(
 			uint16_t cntr,
-			uint32_t nonce,
+			uint32_t ng,
 			unsigned char *chi,
+			uint32_t *nti,
 			unsigned char *cti,
 			unsigned char *sfi,
 			double *time_taken
 		   )
 {
 	TPM_RC rc = 0;
-	rc = sign_helper(cntr, nonce, chi, NULL, 0, cti, sfi, time_taken);
+	rc = sign_helper(cntr, ng, chi, NULL, 0, nti, cti, sfi, time_taken);
 	if (rc != 0) {
 		const char *msg;
 		const char *submsg;
 		const char *num;
-		printf("getSignKeyP4: failed, rc %08x\n", rc);
+		printf("getSignCreP4: failed, rc %08x\n", rc);
 		TSS_ResponseCode_toString(&msg, &submsg, &num, rc);
 		printf("%s%s%s\n", msg, submsg, num);
 		rc = EXIT_FAILURE;
@@ -518,17 +522,17 @@ TPM_RC signP1(
 
 TPM_RC signP2(
 			uint16_t cntr,
-			uint32_t nonce,
 			unsigned char *chs,
 			char *M,
 			uint32_t M_len,
+			uint32_t *nts,
 			unsigned char *cts,
 			unsigned char *sfs,
 			double *time_taken
 	     )
 {
 	TPM_RC rc = 0;
-	rc = sign_helper(cntr, nonce, chs, M, M_len, cts, sfs, time_taken);
+	rc = sign_helper(cntr, 0, chs, M, M_len, nts, cts, sfs, time_taken);
 	if (rc != 0) {
 		const char *msg;
 		const char *submsg;

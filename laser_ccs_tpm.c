@@ -1,7 +1,7 @@
 #include "laser.h"
 #include "laser_tpm.h"
 
-uint64_t aliasTokensPerSignCre = 100, baseRL_entries = 100,
+uint64_t aliasTokensPerSignCre = 100, baseRL_entries = 1,
 	 signCredentialsToGen = 2;
 double t0 = 0, t1 = 0, 
        tpm_online = 0, host_online = 0, issuer_online = 0,
@@ -125,14 +125,14 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 	element_init_G1(Rm, pairing);
 	element_init_Zr(chm, pairing);
 	
-	/* createMemKeyP1 */
+	/* joinP1 */
 	double *time_taken = malloc(sizeof(double));
 	unsigned char I_x[32];
 	unsigned char I_y[32];
-	rc = createMemKeyP1(I_x, I_y, time_taken);
+	rc = joinP1(I_x, I_y, time_taken);
 	if (rc != 0)
 	{
-		perror("createMemKeyP1 failed");
+		perror("joinP1 failed");
 		element_clear(Rm);
 		element_clear(chm);
 		free(time_taken);
@@ -147,29 +147,17 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
 
-	/* createMemKeyP2 */
-
-	/* TPM is supposed to create this nonce... :( */
-	// output ntm
-	int err = fread(ntm, 4, 1, fp);
-	if (err != 1) {
-		perror("read urandom failed");
-		element_clear(Rm);
-		element_clear(chm);
-		free(time_taken);
-		return TPM_RC_NO_RESULT;
-	}	
-
+	/* joinP2 */
 	uint16_t *commit_cntr = malloc(sizeof(uint16_t));
 
 	unsigned char pt_buf[64];
 	element_to_bytes(pt_buf, gpk->h1);
 	unsigned char Rm_buf[64];
 
-	rc = createMemKeyP2(pt_buf, pt_buf + 32, Rm_buf, Rm_buf + 32, commit_cntr, time_taken);
+	rc = joinP2(pt_buf, pt_buf + 32, Rm_buf, Rm_buf + 32, commit_cntr, time_taken);
 	if (rc != 0)
 	{
-		perror("createMemKeyP2 failed");
+		perror("joinP2 failed");
 		element_clear(Rm);
 		element_clear(chm);
 		free(time_taken);
@@ -180,20 +168,19 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
 
-	/* createMemKeyP3 4(b) */
+	/* joinP3 4(b) */
 	Hash1(pubTPM, Rm, chm);
-	/* createMemKeyP3 */
+	/* joinP3 */
 
 	unsigned char ctm_buf[32];
 	unsigned char chm_buf[32];
 	unsigned char sfm_buf[32];
 
 	element_to_bytes(chm_buf, chm);
-	// NEED TO HASH nm into chm <-- Pranav is working on this. 
-	rc = createMemKeyP3(*commit_cntr, *ntm, chm_buf, ctm_buf, sfm_buf, time_taken);
+	rc = joinP3(*commit_cntr, nm, chm_buf, ntm, ctm_buf, sfm_buf, time_taken);
 	if (rc != 0) 
 	{
-		perror("createMemKeyP3 failed");
+		perror("joinP3 failed");
 		element_clear(Rm);
 		element_clear(chm);
 		free(time_taken);
@@ -229,7 +216,7 @@ int joinIssuer(struct groupPublicKey * const gpk, element_t issuerSecret, uint32
 	element_init_Zr(chm_hat, pairing);
 	element_init_Zr(ctm_hat, pairing);
 
-	unsigned char buffer[36];
+	unsigned char buffer[32 + 2 * sizeof(uint32_t)];
 	unsigned char hashout[32];
 
 	element_neg(temp, ctm);
@@ -239,7 +226,8 @@ int joinIssuer(struct groupPublicKey * const gpk, element_t issuerSecret, uint32
 	
 	element_to_bytes(buffer, chm_hat);
 	memcpy(buffer + 32, &ntm, sizeof(uint32_t));
-	SHA256(buffer, 36, hashout);
+	memcpy(buffer + 32 + sizeof(uint32_t), &nm, sizeof(uint32_t));
+	SHA256(buffer, 32 + 2 * sizeof(uint32_t), hashout);
 	element_from_hash(ctm_hat, hashout, 32);
 
 	// TODO: Terminate on first failure and clean up all resources 
@@ -279,11 +267,6 @@ int joinIssuer(struct groupPublicKey * const gpk, element_t issuerSecret, uint32
 
 int initSignatureSigma0(struct membershipProof *sigma0)
 {
-	int err = fread(&sigma0->nt0, 4, 1, fp);
-	if (err != 1) {
-		perror("read urandom failed");
-		return -1;
-	}
 	element_init_Zr(sigma0->a10, pairing);
 	element_init_Zr(sigma0->b20, pairing);	
 	element_init_G1(sigma0->K0, pairing);
@@ -346,18 +329,18 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 	double *time_taken = malloc(sizeof(double));
 	uint16_t *commit_cntr = malloc(sizeof(uint16_t));
 
-	rc = getSignKeyP1(pt_buf, pt_buf + 32, a10_buf, b20_buf,
+	rc = getSignCreP1(pt_buf, pt_buf + 32, a10_buf, b20_buf,
 			K0_buf, K0_buf + 32, S10_buf, S10_buf + 32, 
 			S20_buf, S20_buf + 32, commit_cntr, time_taken);
 	if (rc != 0)
 	{
-		perror("getSignKeyP1 failed");
+		perror("getSignCreP1 failed");
 		free(time_taken);
 		free(commit_cntr);
 		// TODO: What else needs freed here??
 		exit(1);
 	} else
-		printf("getSignKeyP1 complete\n");
+		printf("getSignCreP1 complete\n");
 	
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
@@ -456,18 +439,17 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 	element_init_Zr(ch0, pairing);
   	Hash2(ch0, B0, sigma0->K0, sigma0->L, sigma0->U1, sigma0->U2, 
 			sigma0->U3, R10, R20, R30, R40, 9);
-	// TODO: Add in nt0 to the hash here ?? 
 
-	/* TPM getSignKeyP2 */
+	/* TPM getSignCreP2 */
 	unsigned char ct0_buf[32];
 	unsigned char sf0_buf[32];
 	unsigned char ch0_buf[32];
 	element_to_bytes(ch0_buf, ch0);
 
-	rc = getSignKeyP2(*commit_cntr, ng, ch0_buf, 
+	rc = getSignCreP2(*commit_cntr, ng, ch0_buf, &sigma0->nt0, 
 			ct0_buf, sf0_buf, time_taken);
 	if (rc != 0) {
-		perror("getSignKeyP2 failed");
+		perror("getSignCreP2 failed");
 		free(commit_cntr);
 		free(time_taken);
 		element_clear(ch0);
@@ -475,7 +457,7 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 		exit(1);
 	}
 	else
-		printf("getSignKeyP2 complete\n");
+		printf("getSignCreP2 complete\n");
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
 	free(commit_cntr);
@@ -483,9 +465,6 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 
 	element_from_bytes(sigma0->ct0, ct0_buf);
 	element_from_bytes(sigma0->sf0, sf0_buf);
-	/* TODO: Set nonce by generation on TPM. 
-	 * Currently set by the initializer to random val
-	 */
 	
 	element_mul(sigma0->sy, sigma0->ct0, yj);
 	element_add(sigma0->sy, ry, sigma0->sy);
@@ -581,6 +560,7 @@ void generateBaseRL(int numRevoked, struct basenameRevocationList *baseRL)
 int singleBasenameProof(int index, uint32_t ng,
 	       	struct revocationListEntry *revEntry, struct sigmaG *sigmaG)
 {
+	TPM_RC rc = 0;
 	double host_offset = 0;
 	t0 = pbc_get_time();
 
@@ -591,13 +571,6 @@ int singleBasenameProof(int index, uint32_t ng,
 	element_init_Zr(proof->staui, pairing);
 	element_init_Zr(proof->svi, pairing);
 	
-	/* nti supposed to be TPM generated, is not */
-	int err = fread(&proof->nti, 4, 1, fp);
-	if (err != 1) {
-		perror("read urandom failed");
-		return err;
-	}	
-
 	unsigned char a1i_buf[32];
 	unsigned char Bi_buf[64];
 	element_to_bytes(a1i_buf, revEntry->a1i);
@@ -626,18 +599,18 @@ int singleBasenameProof(int index, uint32_t ng,
 	unsigned char Oi_buf[64];
 	unsigned char S1i_buf[64];
 	unsigned char S2i_buf[64];	
-	err = getSignKeyP3(B0_buf, B0_buf + 32, a1i_buf, Bi_buf + 32,
+	rc = getSignCreP3(B0_buf, B0_buf + 32, a1i_buf, Bi_buf + 32,
 			Oi_buf, Oi_buf + 32, S1i_buf, S1i_buf + 32, S2i_buf, S2i_buf + 32,
 			commit_cntr, time_taken);
-	if (err != 0) {
-		perror("getSignKeyP3 failed");
+	if (rc != 0) {
+		perror("getSignCreP3 failed");
 		free(commit_cntr);
 		free(time_taken);
 		// TODO: What else needs freed here??
-		return err;
+		return rc;
 	} 
 	//else
-	//	printf("getSignKeyP3 complete\n");
+	//	printf("getSignCreP3 complete\n");
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
 	element_t Oi, S1i, S2i;
@@ -698,18 +671,19 @@ int singleBasenameProof(int index, uint32_t ng,
 	unsigned char cti_buf[32];
 	unsigned char sfi_buf[32];
 
-	err = getSignKeyP4(*commit_cntr, ng, chi_buf, cti_buf, sfi_buf, time_taken);
-	if (err != 0) {
-		perror("getSignKeyP4 failed");
+	rc = getSignCreP4(*commit_cntr, ng, chi_buf, &proof->nti, 
+			cti_buf, sfi_buf, time_taken);
+	if (rc != 0) {
+		perror("getSignCreP4 failed");
 		element_clear(taui);
 		element_clear(rtaui);
 		free(commit_cntr);
 		free(time_taken);
 		// TODO: What else needs freed here??
-		return -1;
+		return rc;
 	} 
 	//else
-	//	printf("getSignKeyP4 complete\n");
+	//	printf("getSignCreP4 complete\n");
 
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
@@ -841,9 +815,9 @@ int issuerValidateMembership(struct membershipProof *sigma0,
 	unsigned char ct0_hat_buf[32];
 	element_to_bytes(hash_buf, ch0_hat);
 	// TODO: Fix it so nonces make sense
-	// memcpy(hash_buf + 32, &sigma0->nt0, sizeof(uint32_t));
-	memcpy(hash_buf + 32 /*+ sizeof(uint32_t)*/, &ng, sizeof(uint32_t));
-	SHA256(hash_buf, 32 + (/*2 **/ sizeof(uint32_t)), ct0_hat_buf);
+	memcpy(hash_buf + 32, &sigma0->nt0, sizeof(uint32_t));
+	memcpy(hash_buf + 32 + sizeof(uint32_t), &ng, sizeof(uint32_t));
+	SHA256(hash_buf, 32 + (2 * sizeof(uint32_t)), ct0_hat_buf);
 	element_t ct0_hat;
 	element_init_Zr(ct0_hat, pairing);
 	element_from_hash(ct0_hat, ct0_hat_buf, 32);
@@ -925,14 +899,12 @@ int issuerValidateSingleRevProof(struct revocationListEntry *entry,
 	element_t cti_hat;
 	element_init_Zr(cti_hat, pairing);
 	
-	/* Compute cti_hat = SHA256(chi_hat, nti, ng) except drop nti till we
-	 * TODO: make nonce use make sense, incl. TPM generation...
-	 */	
-	unsigned char buffer[32 + sizeof(uint32_t)];
+	unsigned char buffer[32 + 2 * sizeof(uint32_t)];
 	unsigned char cti_hat_buf[32];
 	element_to_bytes(buffer, chi_hat);
-	memcpy(buffer + 32, &ng, sizeof(uint32_t));
-	SHA256(buffer, 32 + sizeof(uint32_t), cti_hat_buf);
+	memcpy(buffer + 32, &baseProof->nti, sizeof(uint32_t));
+	memcpy(buffer + 32 + sizeof(uint32_t), &ng, sizeof(uint32_t));
+	SHA256(buffer, 32 + 2* sizeof(uint32_t), cti_hat_buf);
 	element_from_bytes(cti_hat, cti_hat_buf);
 
 	if (element_cmp(cti_hat, baseProof->cti)) {
@@ -1080,7 +1052,6 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 {
 	double host_offset = 0;
 	t0 = pbc_get_time();
-	int err;
 	TPM_RC rc = 0;
 
 	initSignatureStructure(sig);
@@ -1193,18 +1164,13 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 	Hash2(chs, sig->xjk, Bs, sig->Ks, sig->T1, sig->T2, 
 			sig->T3, R1s, R2s, R3s, NULL, 9); 
 	
-	err = fread(&sig->nts, 4, 1, fp);
-	if (err != 1) {
-		perror("read urandom failed");
-		exit(1);
-	}	
 	unsigned char chs_buf[32];
 	element_to_bytes(chs_buf, chs);
 	unsigned char sfs_buf[64];
 	unsigned char cts_buf[64];
 
-	rc = signP2(*commit_cntr, sig->nts, chs_buf, message, strlen(message), 
-			cts_buf, sfs_buf, time_taken);
+	rc = signP2(*commit_cntr, chs_buf, message, strlen(message), 
+			&sig->nts, cts_buf, sfs_buf, time_taken);
 	if (rc != 0) {
 		perror("signP2 failed");
 		free(time_taken);
@@ -1524,7 +1490,7 @@ int main()
 	// HOST generates sign 'sigma-m' = (I, nt, ct, sf)
 	rc = joinHost(gpk, nm, pubTPM, ntm, ctm, sfm);
 	if (rc != 0) {
-		perror("problem in createMemKeyHost");
+		perror("problem in joinHost");
 		exit(1);
 	}
 	
@@ -1539,7 +1505,7 @@ int main()
 	err = joinIssuer(gpk, issuerSecret, nm, pubTPM, 
 			*ntm, ctm, sfm, memCre);
 	if (err != 0) {
-		perror("createMemKeyIssuer failed");
+		perror("joinIssuer failed");
 		exit(1);
 	}
 

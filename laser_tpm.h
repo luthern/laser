@@ -17,12 +17,12 @@
 #include <openssl/sha.h>
 
 TPM_RC initTPM(void);
-TPM_RC createMemKeyP1(
+TPM_RC joinP1(
 			unsigned char *I_x,
 			unsigned char *I_y,
 			double *time_taken
 		   );
-TPM_RC createMemKeyP2(
+TPM_RC joinP2(
 			unsigned char *h1_x,
 			unsigned char *h1_y,
 			unsigned char *Rm_x,
@@ -30,15 +30,16 @@ TPM_RC createMemKeyP2(
 			uint16_t *cntr,
 			double *time_taken
 		   );
-TPM_RC createMemKeyP3(
+TPM_RC joinP3(
 			uint16_t cntr,
-			uint32_t nonce,
+			uint32_t nm,
 			unsigned char *chm,
+			uint32_t *ntm,
 			unsigned char *ctm,
 			unsigned char *sfm,
 			double *time_taken
 		   );
-TPM_RC getSignKeyP1(
+TPM_RC getSignCreP1(
 			unsigned char *h1_x,
 			unsigned char *h1_y,
 			unsigned char *a10,
@@ -52,15 +53,16 @@ TPM_RC getSignKeyP1(
 			uint16_t *cntr,
 			double *time_taken
 		   );
-TPM_RC getSignKeyP2(
+TPM_RC getSignCreP2(
 			uint16_t cntr,
-			uint32_t nonce, // how to gen on TPM??
+			uint32_t ng,
 			unsigned char *ch0,
+			uint32_t *nt0,
 			unsigned char *ct0,
 			unsigned char *sf0,
 			double *time_taken
 		   );
-TPM_RC getSignKeyP3(
+TPM_RC getSignCreP3(
 			unsigned char *B0_x,
 			unsigned char *B0_y,
 			unsigned char *a1i,
@@ -74,10 +76,11 @@ TPM_RC getSignKeyP3(
 			uint16_t *cntr,
 			double *time_taken
 		   );
-TPM_RC getSignKeyP4(
+TPM_RC getSignCreP4(
 			uint16_t cntr,
-			uint32_t nonce,
+			uint32_t ng,
 			unsigned char *chi,
+			uint32_t *nti,
 			unsigned char *cti,
 			unsigned char *sfi,
 			double *time_taken
@@ -98,10 +101,10 @@ TPM_RC signP1(
 	     );
 TPM_RC signP2(
 			uint16_t cntr,
-			uint32_t nonce,
 			unsigned char *chs,
 			char *M,
 			uint32_t M_len,
+			uint32_t *nts,
 			unsigned char *cts,
 			unsigned char *sfs,
 			double *time_taken
@@ -126,8 +129,10 @@ TPM_RC sign_helper(
 			unsigned char *hash,
 			char *msg,
 			uint32_t msg_len,
+			uint32_t *nonce_gen,
 			unsigned char *r,
 			unsigned char *s,
 			double *time_taken
 		  );
+TPM_RC getRandomNonce(uint32_t *nonce);
 TPM_RC flush_handles(void);
