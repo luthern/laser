@@ -1373,12 +1373,6 @@ void clearKeyMaterial(element_t pubTPM, element_t issuerSecret,
 	element_clear(memCre->d);
 	free(memCre);
 	memCre = NULL;
-	TPM_RC rc = flush_handles();
-	if (rc != 0)
-	{
-		perror("flush_handles failed");
-		exit(1);
-	}
 }
 
 void freeBaseRL(struct basenameRevocationList *baseRL)
@@ -1563,8 +1557,11 @@ int main()
 	generateBaseRL(baseRL_entries, baseRL);
 	printf("BaseRL generated \n");
 
+	struct sigmaG *proofForIssuer;
+	struct registry *reg;
+	struct signingCredential *signCre;
 	// TODO: Generate variable signing credentials instead of 1. 100 alias tokens each
-	struct signingCredential *signCre; 
+	// TODO: Generate a list of signing credentials instead of freeing all but the last one	
 	int i;
 	for (i = 0; i < signCredentialsToGen; i++) {
 		t0 = pbc_get_time();
@@ -1575,7 +1572,7 @@ int main()
 			exit(1);
 		}	
 
-		struct sigmaG *proofForIssuer = malloc(sizeof(struct sigmaG));
+		proofForIssuer = malloc(sizeof(struct sigmaG));
 		if (proofForIssuer == NULL) {
 			perror("malloc failed");
 			exit(1);
@@ -1594,7 +1591,7 @@ int main()
 			perror("proveMembership failed");
 			exit(1);
 		}
-		//printf("Membership proof made\n");
+		printf("Membership proof made\n");
 	
 		proofForIssuer->entries = baseRL_entries;
 		err = proveUnrevokedBasename(baseRL, ng, proofForIssuer);
@@ -1603,17 +1600,17 @@ int main()
 			exit(1);
 		}
 		t0 = pbc_get_time();
-		//printf("Unrevoked basename returns\n");
+		printf("Unrevoked basename returns\n");
 
 		issuerValidationGetSignCre(baseRL, proofForIssuer, gpk, ng);
-		//printf("Validation of SignCre complete\n");
+		printf("Validation of SignCre complete\n");
 
-		struct registry *reg = malloc(sizeof(struct registry));
+		reg = malloc(sizeof(struct registry));
 		reg->entries = 0;
-		struct signingCredential *signCre = malloc(sizeof(struct signingCredential));
+		signCre = malloc(sizeof(struct signingCredential));
 
 		issuerAliasTokenGeneration(gpk, issuerSecret, proofForIssuer, reg, signCre);
-		//printf("Alias Tokens generated\n");
+		printf("Alias Tokens generated\n");
 		t1 = pbc_get_time();
 		issuer_offline += t1 - t0;
 
@@ -1637,18 +1634,24 @@ int main()
 	struct laserSignature *sig = malloc(sizeof(struct laserSignature));
 	char * message = "MESSAGE";
 
-	t1 = pbc_get_time();
-	host_online += t1 - t0;
 	if (signCre == NULL)
 		printf("WAT! signCre freed\n");
 	err = signMessage(gpk, pubTPM, signCre->aliasTokenList[0], 
 			message, sig);
+	
 	t0 = pbc_get_time();
 	err = verifySignature(gpk, sig, message, NULL);
 	t1 = pbc_get_time();
 	issuer_online += t1 - t0;
 
 	// clear all the structures and key material, flush handles in TPM
+	rc = flush_handles();
+	if (rc != 0)
+	{
+		perror("flush_handles failed");
+		exit(1);
+	}
+
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);
 	freeBaseRL(baseRL);
 	freeSignature(sig);
