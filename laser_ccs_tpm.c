@@ -1011,6 +1011,7 @@ void issuerAliasTokenGeneration(struct groupPublicKey *gpk, element_t issuerSecr
 		element_clear(Ajk);
 		element_clear(one);
 		element_clear(exponent);
+		signCre->aliasTokenList[i]->used = 0;
 		reg->entries++;
 	}	
 }
@@ -1216,6 +1217,7 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 	free(time_taken);
 	t1 = pbc_get_time();
 	host_online += t1 - t0 - host_offset;
+	alias->used = 1;
 	return 0;
 }
 
@@ -1354,6 +1356,33 @@ void freeBaseRL(struct basenameRevocationList *baseRL)
 	free(baseRL);
 }
 
+void freeSignCredential(struct signingCredential * signCre)
+{
+	if (signCre != NULL)
+		return;
+	int i;
+	for (i = 0; i < signCre->entries; i++) {
+		element_clear(signCre->aliasTokenList[i]->Ajk);
+		element_clear(signCre->aliasTokenList[i]->zjk);
+		element_clear(signCre->aliasTokenList[i]->yj);
+		element_clear(signCre->aliasTokenList[i]->xjk);
+		free(signCre->aliasTokenList[i]);
+		signCre->aliasTokenList[i] = NULL;
+	}
+	free(signCre);
+	signCre = NULL;
+}
+
+void freeIdentitiesList(struct identitiesList *idList)
+{
+	int i;
+	for (i = 0; i < signCredentialsToGen; i++) {
+		freeSignCredential(idList->credentials[i]);
+	}
+	free(idList->credentials);
+	free(idList);
+}
+
 void freeProofForIssuer(struct sigmaG *proof)
 {
 	element_clear(proof->sigma0->a10);
@@ -1400,23 +1429,6 @@ void freeRegistry(struct registry *reg)
 	}
 	free(reg);
 	reg = NULL;
-}
-
-void freeSignCredential(struct signingCredential * signCre)
-{
-	if (signCre != NULL)
-		return;
-	int i;
-	for (i = 0; i < signCre->entries; i++) {
-		element_clear(signCre->aliasTokenList[i]->Ajk);
-		element_clear(signCre->aliasTokenList[i]->zjk);
-		element_clear(signCre->aliasTokenList[i]->yj);
-		element_clear(signCre->aliasTokenList[i]->xjk);
-		free(signCre->aliasTokenList[i]);
-		signCre->aliasTokenList[i] = NULL;
-	}
-	free(signCre);
-	signCre = NULL;
 }
 
 void freeSignature(struct laserSignature *sig)
@@ -1525,9 +1537,12 @@ int main()
 
 	struct sigmaG *proofForIssuer;
 	struct registry *reg;
-	struct signingCredential *signCre;
+	
+	struct identitiesList * identitiesList = malloc(sizeof(struct identitiesList));
+	identitiesList->credentials = malloc(signCredentialsToGen * 
+			sizeof(struct signingCredential *)); 
+	
 	// TODO: Generate variable signing credentials instead of 1. 100 alias tokens each
-	// TODO: Generate a list of signing credentials instead of freeing all but the last one	
 	int i;
 	for (i = 0; i < signCredentialsToGen; i++) {
 		t0 = pbc_get_time();
@@ -1573,36 +1588,31 @@ int main()
 
 		reg = malloc(sizeof(struct registry));
 		reg->entries = 0;
-		signCre = malloc(sizeof(struct signingCredential));
+		identitiesList->credentials[i] = malloc(sizeof(struct signingCredential));
 
-		issuerAliasTokenGeneration(gpk, issuerSecret, proofForIssuer, reg, signCre);
+		issuerAliasTokenGeneration(gpk, issuerSecret, proofForIssuer, reg,
+				identitiesList->credentials[i]);
 		printf("Alias Tokens generated\n");
 		t1 = pbc_get_time();
 		issuer_offline += t1 - t0;
 
-		platformFinishTokens(signCre, yj);
+		platformFinishTokens(identitiesList->credentials[i], yj);
 
 		t0 = pbc_get_time();
-		/* End of getSignCre. Can free yj since its now copied into all the alias credentials */
 		element_clear(yj);
 		freeProofForIssuer(proofForIssuer);
-		freeRegistry(reg);
 		// Clear sign credential unless it's the last one
 		// We use the last one for a signature
-		if (i != signCredentialsToGen - 1) {	
-			freeSignCredential(signCre);
-			printf("Freeing signCre %d\n", i);
-		}
-		else
-			printf("SignCre %d generated\n", i);
+		printf("SignCre %d generated\n", i);
 	}
 
 	struct laserSignature *sig = malloc(sizeof(struct laserSignature));
 	char * message = "MESSAGE";
 
-	if (signCre == NULL)
+	if (identitiesList->credentials[0] == NULL)
 		printf("WAT! signCre freed\n");
-	err = signMessage(gpk, pubTPM, signCre->aliasTokenList[0], 
+	err = signMessage(gpk, pubTPM,
+			identitiesList->credentials[0]->aliasTokenList[0], 
 			message, sig);
 	
 	t0 = pbc_get_time();
@@ -1617,7 +1627,8 @@ int main()
 		perror("flush_handles failed");
 		exit(1);
 	}
-
+	freeIdentitiesList(identitiesList);
+	freeRegistry(reg);
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);
 	freeBaseRL(baseRL);
 	freeSignature(sig);

@@ -51,6 +51,7 @@ struct membershipCredential {
 };
 
 struct aliasCredential {
+	uint8_t used;
 	element_t Ajk;
 	element_t zjk;
 	element_t yj;
@@ -61,6 +62,11 @@ struct aliasCredential {
 struct signingCredential {
 	uint32_t entries;
 	struct aliasCredential **aliasTokenList;
+};
+
+struct identitiesList {
+	uint32_t entries;
+	struct signingCredential **credentials;
 };
 
 struct revocationListEntry {
