@@ -1015,7 +1015,6 @@ void issuerAliasTokenGeneration(struct groupPublicKey *gpk, element_t issuerSecr
 		reg->entries++;
 	}	
 }
-
 void platformFinishTokens(struct signingCredential *signCre, element_t yj)
 {
 	int i;
@@ -1023,6 +1022,128 @@ void platformFinishTokens(struct signingCredential *signCre, element_t yj)
 		element_init_Zr(signCre->aliasTokenList[i]->yj, pairing);
 		element_set(signCre->aliasTokenList[i]->yj, yj);
 	}
+}
+
+void freeProofForIssuer(struct sigmaG *proof)
+{
+	element_clear(proof->sigma0->a10);
+	element_clear(proof->sigma0->b20);
+	element_clear(proof->sigma0->K0);
+	element_clear(proof->sigma0->L);
+	element_clear(proof->sigma0->U1);
+	element_clear(proof->sigma0->U2);
+	element_clear(proof->sigma0->U3);
+	element_clear(proof->sigma0->ct0);
+	element_clear(proof->sigma0->sf0);
+	element_clear(proof->sigma0->sy);
+	element_clear(proof->sigma0->st);
+	element_clear(proof->sigma0->stheta);
+	element_clear(proof->sigma0->snu);
+	free(proof->sigma0);
+	proof->sigma0 = NULL;
+	int i;
+	for (i = 0; i < proof->entries; i++) {
+		
+		element_clear(proof->proofsOfNonRevocation[i]->Pi);
+		element_clear(proof->proofsOfNonRevocation[i]->cti);
+		element_clear(proof->proofsOfNonRevocation[i]->staui);
+		element_clear(proof->proofsOfNonRevocation[i]->svi);
+		free(proof->proofsOfNonRevocation[i]);
+		proof->proofsOfNonRevocation[i] = NULL;
+	}
+	free(proof);
+	proof = NULL;
+}
+
+void freeRegistry(struct registry *reg)
+{
+	if (reg == NULL)
+		return;
+	int i;
+	for (i = 0; i < reg->entries; i++) {
+		element_clear(reg->registryEntries[i]->a10);
+		element_clear(reg->registryEntries[i]->b20);
+		element_clear(reg->registryEntries[i]->xjk);
+		element_clear(reg->registryEntries[i]->K0);
+		free(reg->registryEntries[i]);
+		reg->registryEntries[i] = NULL;
+	}
+	free(reg);
+	reg = NULL;
+}
+
+int generateSignCredentials(element_t pubTPM, struct membershipCredential *memCre, 
+		element_t issuerSecret, struct sigmaG *proofForIssuer, 
+		struct groupPublicKey *gpk, struct basenameRevocationList *baseRL,
+		struct registry *reg, struct identitiesList *identitiesList
+	      )
+{
+	      // TODO: Generate variable signing credentials instead of 1. 100 alias tokens each
+	int i;
+	int err = 0;
+	for (i = 0; i < signCredentialsToGen; i++) {
+		t0 = pbc_get_time();
+		uint32_t ng; 
+		err = fread(&ng, 4, 1, fp);
+		if (err != 1) {
+			perror("read urandom failed");
+			exit(1);
+		}	
+
+		proofForIssuer = malloc(sizeof(struct sigmaG));
+		if (proofForIssuer == NULL) {
+			perror("malloc failed");
+			exit(1);
+		}
+		proofForIssuer->sigma0 = malloc(sizeof(struct membershipProof));
+		if (proofForIssuer->sigma0 == NULL) {
+			perror("malloc failed");
+			exit(1);
+		}
+		
+		element_t yj; 
+		t1 = pbc_get_time();
+		host_offline += t1 - t0;
+		err = proveMembership(pubTPM, gpk, memCre, ng, yj, proofForIssuer->sigma0);
+		if (err != 0) {
+			perror("proveMembership failed");
+			exit(1);
+		}
+		printf("Membership proof made\n");
+	
+		proofForIssuer->entries = baseRL_entries;
+		err = proveUnrevokedBasename(baseRL, ng, proofForIssuer);
+		if (err != 0) {
+			perror("proveUnrevokedBasename failed");
+			exit(1);
+		}
+		t0 = pbc_get_time();
+		printf("Unrevoked basename returns\n");
+
+		issuerValidationGetSignCre(baseRL, proofForIssuer, gpk, ng);
+		printf("Validation of SignCre complete\n");
+
+		reg = malloc(sizeof(struct registry));
+		reg->entries = 0;
+		identitiesList->credentials[i] = malloc(sizeof(struct signingCredential));
+
+		issuerAliasTokenGeneration(gpk, issuerSecret, proofForIssuer, reg,
+				identitiesList->credentials[i]);
+		printf("Alias Tokens generated\n");
+		t1 = pbc_get_time();
+		issuer_offline += t1 - t0;
+
+		platformFinishTokens(identitiesList->credentials[i], yj);
+
+		t0 = pbc_get_time();
+		element_clear(yj);
+		freeProofForIssuer(proofForIssuer);
+		freeRegistry(reg);
+		// Clear sign credential unless it's the last one
+		// We use the last one for a signature
+		printf("SignCre %d generated\n", i);
+	}
+	return 0;
 }
 
 void initSignatureStructure(struct laserSignature *sig)
@@ -1383,54 +1504,6 @@ void freeIdentitiesList(struct identitiesList *idList)
 	free(idList);
 }
 
-void freeProofForIssuer(struct sigmaG *proof)
-{
-	element_clear(proof->sigma0->a10);
-	element_clear(proof->sigma0->b20);
-	element_clear(proof->sigma0->K0);
-	element_clear(proof->sigma0->L);
-	element_clear(proof->sigma0->U1);
-	element_clear(proof->sigma0->U2);
-	element_clear(proof->sigma0->U3);
-	element_clear(proof->sigma0->ct0);
-	element_clear(proof->sigma0->sf0);
-	element_clear(proof->sigma0->sy);
-	element_clear(proof->sigma0->st);
-	element_clear(proof->sigma0->stheta);
-	element_clear(proof->sigma0->snu);
-	free(proof->sigma0);
-	proof->sigma0 = NULL;
-	int i;
-	for (i = 0; i < proof->entries; i++) {
-		
-		element_clear(proof->proofsOfNonRevocation[i]->Pi);
-		element_clear(proof->proofsOfNonRevocation[i]->cti);
-		element_clear(proof->proofsOfNonRevocation[i]->staui);
-		element_clear(proof->proofsOfNonRevocation[i]->svi);
-		free(proof->proofsOfNonRevocation[i]);
-		proof->proofsOfNonRevocation[i] = NULL;
-	}
-	free(proof);
-	proof = NULL;
-}
-
-void freeRegistry(struct registry *reg)
-{
-	if (reg == NULL)
-		return;
-	int i;
-	for (i = 0; i < reg->entries; i++) {
-		element_clear(reg->registryEntries[i]->a10);
-		element_clear(reg->registryEntries[i]->b20);
-		element_clear(reg->registryEntries[i]->xjk);
-		element_clear(reg->registryEntries[i]->K0);
-		free(reg->registryEntries[i]);
-		reg->registryEntries[i] = NULL;
-	}
-	free(reg);
-	reg = NULL;
-}
-
 void freeSignature(struct laserSignature *sig)
 {
 	element_clear(sig->xjk);
@@ -1535,76 +1608,16 @@ int main()
 	generateBaseRL(baseRL_entries, baseRL);
 	printf("BaseRL generated \n");
 
-	struct sigmaG *proofForIssuer;
-	struct registry *reg;
+	struct sigmaG *proofForIssuer = NULL;
+	struct registry *reg = NULL;
 	
 	struct identitiesList * identitiesList = malloc(sizeof(struct identitiesList));
 	identitiesList->credentials = malloc(signCredentialsToGen * 
 			sizeof(struct signingCredential *)); 
 	
-	// TODO: Generate variable signing credentials instead of 1. 100 alias tokens each
-	int i;
-	for (i = 0; i < signCredentialsToGen; i++) {
-		t0 = pbc_get_time();
-		uint32_t ng; 
-		err = fread(&ng, 4, 1, fp);
-		if (err != 1) {
-			perror("read urandom failed");
-			exit(1);
-		}	
-
-		proofForIssuer = malloc(sizeof(struct sigmaG));
-		if (proofForIssuer == NULL) {
-			perror("malloc failed");
-			exit(1);
-		}
-		proofForIssuer->sigma0 = malloc(sizeof(struct membershipProof));
-		if (proofForIssuer->sigma0 == NULL) {
-			perror("malloc failed");
-			exit(1);
-		}
-		
-		element_t yj; 
-		t1 = pbc_get_time();
-		host_offline += t1 - t0;
-		err = proveMembership(pubTPM, gpk, memCre, ng, yj, proofForIssuer->sigma0);
-		if (err != 0) {
-			perror("proveMembership failed");
-			exit(1);
-		}
-		printf("Membership proof made\n");
-	
-		proofForIssuer->entries = baseRL_entries;
-		err = proveUnrevokedBasename(baseRL, ng, proofForIssuer);
-		if (err != 0) {
-			perror("proveUnrevokedBasename failed");
-			exit(1);
-		}
-		t0 = pbc_get_time();
-		printf("Unrevoked basename returns\n");
-
-		issuerValidationGetSignCre(baseRL, proofForIssuer, gpk, ng);
-		printf("Validation of SignCre complete\n");
-
-		reg = malloc(sizeof(struct registry));
-		reg->entries = 0;
-		identitiesList->credentials[i] = malloc(sizeof(struct signingCredential));
-
-		issuerAliasTokenGeneration(gpk, issuerSecret, proofForIssuer, reg,
-				identitiesList->credentials[i]);
-		printf("Alias Tokens generated\n");
-		t1 = pbc_get_time();
-		issuer_offline += t1 - t0;
-
-		platformFinishTokens(identitiesList->credentials[i], yj);
-
-		t0 = pbc_get_time();
-		element_clear(yj);
-		freeProofForIssuer(proofForIssuer);
-		// Clear sign credential unless it's the last one
-		// We use the last one for a signature
-		printf("SignCre %d generated\n", i);
-	}
+	err = generateSignCredentials(pubTPM, memCre, 
+		issuerSecret, proofForIssuer, 
+		gpk, baseRL, reg, identitiesList);
 
 	struct laserSignature *sig = malloc(sizeof(struct laserSignature));
 	char * message = "MESSAGE";
@@ -1628,7 +1641,7 @@ int main()
 		exit(1);
 	}
 	freeIdentitiesList(identitiesList);
-	freeRegistry(reg);
+	//freeRegistry(reg);
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);
 	freeBaseRL(baseRL);
 	freeSignature(sig);
