@@ -2,7 +2,7 @@
 #include "laser_tpm.h"
 
 uint64_t aliasTokensPerSignCre = 100, baseRL_entries = 1,
-	 signCredentialsToGen = 2;
+	 signCredentialsToGen = 2, numSignatures = 1;
 double t0 = 0, t1 = 0, 
        tpm_online = 0, host_online = 0, issuer_online = 0,
        tpm_offline = 0, host_offline = 0, issuer_offline = 0;
@@ -1523,8 +1523,35 @@ void freeSignature(struct laserSignature *sig)
 	sig = NULL;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+	uint64_t option;
+	if (argc < 6) {
+		printf("Usage: ccs_exe NumSignCredentials aliasTokensPerSignCre"
+			       "NumSignatures NumRevoked Option\n"
+				"Options:\n0 Classical DAA," 
+				"one signature per sign credential\n"
+				"1 All signatures on first sign credential\n");
+		exit(0);
+	}
+
+	signCredentialsToGen = (uint64_t) strtol(argv[1], NULL, 10);
+	aliasTokensPerSignCre = (uint64_t) strtol(argv[2], NULL, 10);
+	baseRL_entries = (uint64_t) strtol(argv[3], NULL, 10);
+	numSignatures = (uint64_t) strtol(argv[4], NULL, 10);
+	option = (uint64_t) strtol(argv[5], NULL, 10);
+
+	if (option && numSignatures > aliasTokensPerSignCre) {
+		printf("For option 1 NumSignatures must be less than"
+				"aliasTokensPerSignCre\n");
+		exit(1);
+	}
+	else if (!option && numSignatures > signCredentialsToGen) {
+		printf("For option 0 NumSignatures must be less than"
+				"NumSignCredentials\n");
+		exit(1);
+	}
+
 	t0 = pbc_get_time();
 	// init pairing, declare error variables
 	pairing_init_set_str(pairing, bncurve);
@@ -1537,8 +1564,7 @@ int main()
 
 	// allocate storage for group public key 
 	// 'gpk' = (g1, h1, h2, chi, g2, omega)
-	struct groupPublicKey *gpk = (struct groupPublicKey *) malloc(sizeof(struct 
-				groupPublicKey));
+	struct groupPublicKey *gpk = malloc(sizeof(struct groupPublicKey));
 
 	// initialize contents of gpk, issuerSecret
 	err = setupLaser(issuerSecret, gpk);
@@ -1619,20 +1645,52 @@ int main()
 		issuerSecret, proofForIssuer, 
 		gpk, baseRL, reg, identitiesList);
 
-	struct laserSignature *sig = malloc(sizeof(struct laserSignature));
+	struct laserSignature *sig;
 	char * message = "MESSAGE";
 
-	if (identitiesList->credentials[0] == NULL)
-		printf("WAT! signCre freed\n");
-	err = signMessage(gpk, pubTPM,
-			identitiesList->credentials[0]->aliasTokenList[0], 
-			message, sig);
-	
-	t0 = pbc_get_time();
-	err = verifySignature(gpk, sig, message, NULL);
-	t1 = pbc_get_time();
-	issuer_online += t1 - t0;
+	// TODO: Compute multiple signatures either with the same or different signCre	
 
+	if (option) {
+		// sign all on signCredential 0
+		for (int i = 0; i < numSignatures; i++) {
+			sig = malloc(sizeof(struct laserSignature));
+			err = signMessage(gpk, pubTPM, 
+				identitiesList->credentials[0]->aliasTokenList[i],
+				message, sig);
+			if (err) {
+				printf("Error in signature\n");
+			}
+			t0 = pbc_get_time();
+			err = verifySignature(gpk, sig, message, NULL);
+			if (err) {
+				printf("Error in verify signature\n");
+			}
+			t1 = pbc_get_time();
+			issuer_online += t1 - t0;
+			freeSignature(sig);
+		}
+	}
+	else {
+		// sign all on separate signCredentials
+		for (int i = 0; i < numSignatures; i++) {
+			sig = malloc(sizeof(struct laserSignature));
+			err = signMessage(gpk, pubTPM, 
+				identitiesList->credentials[i]->aliasTokenList[0],
+				message, sig);
+			if (err) {
+				printf("Error in signature\n");
+			}
+			t0 = pbc_get_time();
+			err = verifySignature(gpk, sig, message, NULL);
+			if (err) {
+				printf("Error in verify signature\n");
+			}
+			t1 = pbc_get_time();
+			issuer_online += t1 - t0;
+			freeSignature(sig);
+		}
+	}
+	
 	// clear all the structures and key material, flush handles in TPM
 	rc = flush_handles();
 	if (rc != 0)
@@ -1644,7 +1702,6 @@ int main()
 	//freeRegistry(reg);
 	clearKeyMaterial(pubTPM, issuerSecret, gpk, memCre);
 	freeBaseRL(baseRL);
-	freeSignature(sig);
 	pairing_clear(pairing);
 	fclose(fp);
 	printf("TPM Offline: %.2fms\n", tpm_offline * 1000);
