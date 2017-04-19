@@ -105,6 +105,8 @@ TPM_RC sign_helper(
 	TPMT_HA				digest;
 	uint16_t			nonce_len = 0;
 	uint16_t			nonce_gen_len = 0;
+	Hash_In				hashIn;
+	Hash_Out			hashOut;
 	
 	if (nonce != 0)
 		nonce_len = sizeof(uint32_t);
@@ -128,8 +130,26 @@ TPM_RC sign_helper(
 			memcpy(message + sizeInBytes + 
 				nonce_gen_len + nonce_len, msg, msg_len);
 		}
-		rc = TSS_Hash_Generate(&digest, messageLength, message, 0, NULL);
-		free(message);
+		if (messageLength > MAX_DIGEST_BUFFER) {
+			printf("Input data too long %lu\n", (unsigned long)
+				messageLength);
+			rc = TSS_RC_INSUFFICIENT_BUFFER;
+		}
+		//rc = TSS_Hash_Generate(&digest, messageLength, message, 0, NULL);
+	}
+	if (rc == 0) {
+		hashIn.hierarchy = TPM_RH_NULL;
+		hashIn.data.t.size = messageLength;
+		hashIn.hashAlg = halg;
+		memcpy(hashIn.data.t.buffer, message, messageLength);			
+	}	
+	if (rc == 0) {
+		rc = TSS_Execute(tssContext,
+			(RESPONSE_PARAMETERS *)&hashOut,
+			(COMMAND_PARAMETERS *)&hashIn,
+			NULL,
+			TPM_CC_Hash,
+			TPM_RH_NULL, NULL, 0);
 	}
 	/* Set up inputs for TPM2_Sign */
 	if (rc == 0) {
@@ -139,7 +159,8 @@ TPM_RC sign_helper(
 		signIn.inScheme.details.ecdaa.count = cntr;
 		signIn.inScheme.details.ecdaa.hashAlg = halg;
 		signIn.digest.t.size = sizeInBytes;
-		memcpy(&signIn.digest.t.buffer, (uint8_t *) &digest.digest, sizeInBytes);
+		memcpy(&signIn.digest.t.buffer, 
+			(uint8_t *) hashOut.outHash.t.buffer, sizeInBytes);
 		signIn.validation.tag = TPM_ST_HASHCHECK;
 		signIn.validation.hierarchy = TPM_RH_NULL;
 		signIn.validation.digest.t.size = 0;
@@ -162,6 +183,9 @@ TPM_RC sign_helper(
 	if (rc == 0) {
 		memcpy(r, signOut.signature.signature.ecdaa.signatureR.t.buffer, 32);
 		memcpy(s, signOut.signature.signature.ecdaa.signatureS.t.buffer, 32);
+	}
+	if (message != NULL) {
+		free(message);
 	}
 	return rc;
 }
