@@ -102,7 +102,6 @@ TPM_RC sign_helper(
 	uint32_t			sizeInBytes;
 	uint16_t 			messageLength; 
 	unsigned char			*message;
-	TPMT_HA				digest;
 	uint16_t			nonce_len = 0;
 	uint16_t			nonce_gen_len = 0;
 	Hash_In				hashIn;
@@ -117,8 +116,7 @@ TPM_RC sign_helper(
 	}
 	/* Produce digest that will be signed */ 
 	if (rc == 0) {
-		digest.hashAlg = halg;
-		sizeInBytes = TSS_GetDigestSize(digest.hashAlg);
+		sizeInBytes = TSS_GetDigestSize(halg);
 		messageLength = sizeInBytes + nonce_len 
 			+ nonce_gen_len + msg_len;
 		message = malloc(messageLength);
@@ -135,7 +133,6 @@ TPM_RC sign_helper(
 				messageLength);
 			rc = TSS_RC_INSUFFICIENT_BUFFER;
 		}
-		//rc = TSS_Hash_Generate(&digest, messageLength, message, 0, NULL);
 	}
 	if (rc == 0) {
 		hashIn.hierarchy = TPM_RH_NULL;
