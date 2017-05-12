@@ -6,6 +6,9 @@ uint64_t aliasTokensPerSignCre = 100, baseRL_entries = 1,
 double t0 = 0, t1 = 0, 
        tpm_online = 0, host_online = 0, issuer_online = 0,
        tpm_offline = 0, host_offline = 0, issuer_offline = 0;
+double tpm_gsc = 0, host_gsc = 0, iss_gsc = 0;
+double tpm_join = 0, host_join = 0, iss_join = 0,
+	tpm_sign = 0, host_sign = 0, verify = 0;
 static pairing_t pairing;
 static FILE *fp;
 
@@ -145,6 +148,7 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 	// output pubTPM
 	element_from_bytes(pubTPM, I_buf);	
 	tpm_offline += *time_taken;
+	tpm_join += *time_taken;
 	host_offset += *time_taken;
 
 	/* joinP2 */
@@ -166,6 +170,7 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 	}
 	element_from_bytes(Rm, Rm_buf);
 	tpm_offline += *time_taken;
+	tpm_join += *time_taken;
 	host_offset += *time_taken;
 
 	/* joinP3 4(b) */
@@ -192,6 +197,7 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 	element_from_bytes(ctm, ctm_buf);
 	element_from_bytes(sfm, sfm_buf);
 	tpm_offline += *time_taken;
+	tpm_join += *time_taken;
 	host_offset += *time_taken;
 
 	free(time_taken);
@@ -201,6 +207,7 @@ TPM_RC joinHost(struct groupPublicKey * const gpk, uint32_t nm,
 
 	t1 = pbc_get_time();
 	host_offline += t1 - t0 - host_offset;
+	host_join += t1 - t0 - host_offset;
 	return 0;
 }
 
@@ -262,7 +269,7 @@ int joinIssuer(struct groupPublicKey * const gpk, element_t issuerSecret, uint32
 	element_pow_zn(memCre->J, tempG1, exponent);
 	/* Clean up temporary variables */
 	element_clear(exponent);
-
+	element_clear(tempG1);
 	return 0;
 }
 
@@ -344,6 +351,7 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 	//	printf("getSignCreP1 complete\n");
 	
 	tpm_offline += *time_taken;
+	tpm_gsc += *time_taken;
 	host_offset += *time_taken;
 
 	element_from_bytes(sigma0->K0, K0_buf);
@@ -459,6 +467,7 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 	} //else
 	//	printf("getSignCreP2 complete\n");
 	tpm_offline += *time_taken;
+	tpm_gsc += *time_taken;
 	host_offset += *time_taken;
 	free(commit_cntr);
 	free(time_taken);
@@ -500,6 +509,7 @@ int proveMembership(element_t pubTPM, struct groupPublicKey *gpk,
 	element_clear(ch0);
 	t1 = pbc_get_time();
 	host_offline += t1 - t0 - host_offset;
+	host_gsc += t1 - t0 - host_offset;
 	return 0;
 }
 
@@ -610,9 +620,8 @@ int singleBasenameProof(int index, uint32_t ng,
 		// TODO: What else needs freed here??
 		return rc;
 	} 
-	//else
-	//	printf("getSignCreP3 complete\n");
 	tpm_offline += *time_taken;
+	tpm_gsc += *time_taken;
 	host_offset += *time_taken;
 	element_t Oi, S1i, S2i;
 	element_init_G1(Oi, pairing);
@@ -627,9 +636,6 @@ int singleBasenameProof(int index, uint32_t ng,
 	if (!element_cmp(revEntry->Ki, Oi)) {
 		printf("GetSignCre (4)(c) verification not passed!\n");
 	} 
-	//else {
-	//	printf("GetSignCre (4)(c) passed\n");
-	//}
 
 	element_t taui;
 	element_t rtaui;
@@ -683,9 +689,8 @@ int singleBasenameProof(int index, uint32_t ng,
 		// TODO: What else needs freed here??
 		return rc;
 	} 
-	//else
-	//	printf("getSignCreP4 complete\n");
 
+	tpm_gsc += *time_taken;
 	tpm_offline += *time_taken;
 	host_offset += *time_taken;
 	free(commit_cntr);
@@ -707,6 +712,7 @@ int singleBasenameProof(int index, uint32_t ng,
 	element_clear(rtaui);
 	t1 = pbc_get_time();
 	host_offline += t1 - t0 - host_offset;
+	host_gsc += t1 - t0 - host_offset;
 	return 0;
 }	
 
@@ -815,7 +821,7 @@ int issuerValidateMembership(struct membershipProof *sigma0,
 	unsigned char hash_buf[32 + (2 * sizeof(uint32_t))];
 	unsigned char ct0_hat_buf[32];
 	element_to_bytes(hash_buf, ch0_hat);
-	// TODO: Fix it so nonces make sense
+	
 	memcpy(hash_buf + 32, &sigma0->nt0, sizeof(uint32_t));
 	memcpy(hash_buf + 32 + sizeof(uint32_t), &ng, sizeof(uint32_t));
 	SHA256(hash_buf, 32 + (2 * sizeof(uint32_t)), ct0_hat_buf);
@@ -829,9 +835,6 @@ int issuerValidateMembership(struct membershipProof *sigma0,
 		element_clear(ch0_hat);
 		return 1;
 	} 
-	//else {
-	//	printf("GetSignKey Issuer Membership Verification (6)(d) passed!\n");
-	//}
 	element_clear(ct0_hat);
 	element_clear(ch0_hat);
 	return 0;
@@ -913,6 +916,7 @@ int issuerValidateSingleRevProof(struct revocationListEntry *entry,
 		printf("Issuer Validation of non-revocation failed (7)(c)\n");
 		return 1;
 	}
+	element_clear(chi_hat);
 	element_clear(cti_hat);
 
 	element_t one_G1;
@@ -934,7 +938,7 @@ int issuerValidateUnrevoked(struct basenameRevocationList *baseRL,
 {
 	int ret = 0;
 	int i;
-	for (i = 0; i < proof->entries; i++) {
+	for (i = 0; i < baseRL_entries; i++) {
 		ret = issuerValidateSingleRevProof(baseRL->revokedBasenameList[i],
 				proof->proofsOfNonRevocation[i], proof->sigma0, ng);
 		if (ret)
@@ -957,15 +961,13 @@ void issuerAliasTokenGeneration(struct groupPublicKey *gpk, element_t issuerSecr
 		struct sigmaG *proof, struct registry *reg, 
 		struct signingCredential *signCre)
 {
-	signCre->entries = proof->entries;
+	signCre->entries = aliasTokensPerSignCre;
 	signCre->aliasTokenList = malloc(aliasTokensPerSignCre * 
 			sizeof(struct aliasCredential *));
 	reg->registryEntries = malloc(aliasTokensPerSignCre * 
 			sizeof(struct registryEntry *));
 	
 	int i;
-	// TODO: More flexible registry allocation of memory so we can add more tokens
-	// and have more than one signCredential. This is not possible with current code.
 	for (i = 0; i < aliasTokensPerSignCre; i++) {
 		element_t xjk;
 		element_t zjk;
@@ -1039,6 +1041,7 @@ void freeProofForIssuer(struct sigmaG *proof)
 	element_clear(proof->sigma0->sy);
 	element_clear(proof->sigma0->st);
 	element_clear(proof->sigma0->stheta);
+	element_clear(proof->sigma0->sxi);
 	element_clear(proof->sigma0->snu);
 	free(proof->sigma0);
 	proof->sigma0 = NULL;
@@ -1052,6 +1055,7 @@ void freeProofForIssuer(struct sigmaG *proof)
 		free(proof->proofsOfNonRevocation[i]);
 		proof->proofsOfNonRevocation[i] = NULL;
 	}
+	free(proof->proofsOfNonRevocation);
 	free(proof);
 	proof = NULL;
 }
@@ -1069,6 +1073,7 @@ void freeRegistry(struct registry *reg)
 		free(reg->registryEntries[i]);
 		reg->registryEntries[i] = NULL;
 	}
+	free(reg->registryEntries);
 	free(reg);
 	reg = NULL;
 }
@@ -1079,7 +1084,6 @@ int generateSignCredentials(element_t pubTPM, struct membershipCredential *memCr
 		struct registry *reg, struct identitiesList *identitiesList
 	      )
 {
-	      // TODO: Generate variable signing credentials instead of 1. 100 alias tokens each
 	int i;
 	int err = 0;
 	for (i = 0; i < signCredentialsToGen; i++) {
@@ -1105,6 +1109,7 @@ int generateSignCredentials(element_t pubTPM, struct membershipCredential *memCr
 		element_t yj; 
 		t1 = pbc_get_time();
 		host_offline += t1 - t0;
+		host_gsc += t1 - t0;
 		err = proveMembership(pubTPM, gpk, memCre, ng, yj, proofForIssuer->sigma0);
 		if (err != 0) {
 			perror("proveMembership failed");
@@ -1133,6 +1138,7 @@ int generateSignCredentials(element_t pubTPM, struct membershipCredential *memCr
 		//printf("Alias Tokens generated\n");
 		t1 = pbc_get_time();
 		issuer_offline += t1 - t0;
+		iss_gsc += t1 - t0;
 
 		platformFinishTokens(identitiesList->credentials[i], yj);
 
@@ -1140,9 +1146,6 @@ int generateSignCredentials(element_t pubTPM, struct membershipCredential *memCr
 		element_clear(yj);
 		freeProofForIssuer(proofForIssuer);
 		freeRegistry(reg);
-		// Clear sign credential unless it's the last one
-		// We use the last one for a signature
-		//printf("SignCre %d generated\n", i);
 	}
 	return 0;
 }
@@ -1210,6 +1213,7 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 	//	printf("signP1 complete\n");
 	host_offset += *time_taken;
 	tpm_online += *time_taken;
+	tpm_sign += *time_taken; 
 	element_t S1s, S2s;
 	element_init_G1(S1s, pairing);
 	element_init_G1(S2s, pairing);
@@ -1296,6 +1300,7 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 		return rc;
 	}
 	host_offset += *time_taken;
+	tpm_sign += *time_taken;
 	tpm_online += *time_taken;
 	element_from_bytes(sig->sfs, sfs_buf);
 	element_from_bytes(sig->cts, cts_buf);
@@ -1310,6 +1315,7 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 	element_mul(sig->sv, sig->cts, v);
 	element_add(sig->sv, sig->sv, rv);
 
+	element_clear(Bs);
 	element_clear(chs);
 	element_clear(rz);
 	element_clear(rdelta);
@@ -1333,6 +1339,7 @@ int signMessage(struct groupPublicKey *gpk, element_t pubTPM,
 	free(time_taken);
 	t1 = pbc_get_time();
 	host_online += t1 - t0 - host_offset;
+	host_sign += t1 - t0 - host_offset;
 	alias->used = 1;
 	return 0;
 }
@@ -1416,6 +1423,7 @@ int verifySignature(struct groupPublicKey *gpk, struct laserSignature *sig,
 	element_to_bytes(buffer, chs_hat);
 	memcpy(buffer + 32, &sig->nts, sizeof(uint32_t));
 	memcpy(buffer + 32 + sizeof(uint32_t), message, strlen(message));
+	element_clear(chs_hat);
 	
 	unsigned char cts_buf[32];
 	element_t cts_hat;
@@ -1425,10 +1433,9 @@ int verifySignature(struct groupPublicKey *gpk, struct laserSignature *sig,
 
 	if (element_cmp(cts_hat, sig->cts)) {
 		printf("Signature verification failed\n");
-		
-	} //else {
-		//printf("Verified signature!\n");
-	//}
+		element_clear(cts_hat);	
+	}
+	element_clear(cts_hat);
 
 	/* Verify unrevoked */
 	if (atRL != NULL) {
@@ -1468,6 +1475,8 @@ void freeBaseRL(struct basenameRevocationList *baseRL)
 		free(baseRL->revokedBasenameList[i]);
 		baseRL->revokedBasenameList[i] = NULL;
 	}
+	if (baseRL_entries > 0)
+		free(baseRL->revokedBasenameList);
 	free(baseRL);
 }
 
@@ -1476,7 +1485,7 @@ void freeSignCredential(struct signingCredential * signCre)
 	if (signCre != NULL)
 		return;
 	int i;
-	for (i = 0; i < signCre->entries; i++) {
+	for (i = 0; i < aliasTokensPerSignCre; i++) {
 		element_clear(signCre->aliasTokenList[i]->Ajk);
 		element_clear(signCre->aliasTokenList[i]->zjk);
 		element_clear(signCre->aliasTokenList[i]->yj);
@@ -1484,6 +1493,7 @@ void freeSignCredential(struct signingCredential * signCre)
 		free(signCre->aliasTokenList[i]);
 		signCre->aliasTokenList[i] = NULL;
 	}
+	free(signCre->aliasTokenList);
 	free(signCre);
 	signCre = NULL;
 }
@@ -1493,6 +1503,7 @@ void freeIdentitiesList(struct identitiesList *idList)
 	int i;
 	for (i = 0; i < signCredentialsToGen; i++) {
 		freeSignCredential(idList->credentials[i]);
+		free(idList->credentials[i]);
 	}
 	free(idList->credentials);
 	free(idList);
@@ -1584,6 +1595,7 @@ int main(int argc, char *argv[])
 	}
 	t1 = pbc_get_time();
 	issuer_offline += t1 - t0;
+	iss_join += t1 - t0;
 
 	element_t pubTPM;
 	element_t ctm;
@@ -1620,6 +1632,7 @@ int main(int argc, char *argv[])
 	free(ntm);
 	t1 = pbc_get_time();
 	issuer_offline += t1 - t0;
+	iss_join += t1 - t0;
 	/* Join done. Membership credential obtained, next getSignCre */
 	
 	// Generate BaseRL once
@@ -1641,7 +1654,6 @@ int main(int argc, char *argv[])
 
 	struct laserSignature *sig = NULL;
 	char * message = "MESSAGE";
-	// TODO: Compute multiple signatures either with the same or different signCre	
 
 	if (option) {
 		// sign all on signCredential 0
@@ -1660,6 +1672,7 @@ int main(int argc, char *argv[])
 			}
 			t1 = pbc_get_time();
 			issuer_online += t1 - t0;
+			verify += t1 - t0;
 			freeSignature(sig);
 		}
 	}
@@ -1680,6 +1693,7 @@ int main(int argc, char *argv[])
 			}
 			t1 = pbc_get_time();
 			issuer_online += t1 - t0;
+			verify += t1 - t0;
 			freeSignature(sig);
 		}
 	}
@@ -1697,11 +1711,24 @@ int main(int argc, char *argv[])
 	freeBaseRL(baseRL);
 	pairing_clear(pairing);
 	fclose(fp);
-	printf("TPM Offline: %.2fms\n", tpm_offline * 1000);
-	printf("Host Offline: %.2fms\n", host_offline * 1000);
-	printf("Issuer Offline: %.2fms\n", issuer_offline * 1000);
-	printf("TPM Online: %.2fms\n", tpm_online * 1000);
-	printf("Host Online: %.2fms\n", host_online * 1000);
-	printf("Issuer Online: %.2fms\n", issuer_online * 1000);
+	/*
+	printf("TPM JOIN: %.2fms\n", tpm_join * 1000);
+	printf("HOST JOIN: %.2fms\n", host_join *1000);
+	printf("ISS JOIN: %.2fms\n", iss_join * 1000);
+	printf("TPM SIGN: %.2fms\n", tpm_sign * 1000);
+	printf("HOST SIGN: %.2fms\n", host_sign * 1000);
+	printf("VERIFY: %.2fms\n", verify * 1000); 
+	*/
+	//printf("TPM Offline: %.2fms\n", tpm_offline * 1000);
+	//printf("Host Offline: %.2fms\n", host_offline * 1000);
+	//printf("Issuer Offline: %.2fms\n", issuer_offline * 1000);
+	//printf("TPM Online: %.2fms\n", tpm_online * 1000);
+	//printf("Host Online: %.2fms\n", host_online * 1000);
+	//printf("Issuer Online: %.2fms\n", issuer_online * 1000);
+	printf("%lu | %lu | %lu | ", signCredentialsToGen, aliasTokensPerSignCre,
+			baseRL_entries);
+	printf("%.2f | %.2f | %.2f\n", 
+		tpm_gsc * 1000, host_gsc * 1000, iss_gsc * 1000);
+
 	return 0;
 }

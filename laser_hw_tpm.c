@@ -107,12 +107,16 @@ TPM_RC sign_helper(
 	Hash_In				hashIn;
 	Hash_Out			hashOut;
 	
+	*time_taken = 0;
 	if (nonce != 0)
 		nonce_len = sizeof(uint32_t);
 
 	if (nonce_gen != NULL) {
+		t0 = pbc_get_time();
 		rc = getRandomNonce(nonce_gen);
 		nonce_gen_len = sizeof(uint32_t);
+		t1 = pbc_get_time();
+		*time_taken += t1 - t0;
 	}
 	/* Produce digest that will be signed */ 
 	if (rc == 0) {
@@ -141,12 +145,15 @@ TPM_RC sign_helper(
 		memcpy(hashIn.data.t.buffer, message, messageLength);			
 	}	
 	if (rc == 0) {
+		t0 = pbc_get_time();
 		rc = TSS_Execute(tssContext,
 			(RESPONSE_PARAMETERS *)&hashOut,
 			(COMMAND_PARAMETERS *)&hashIn,
 			NULL,
 			TPM_CC_Hash,
 			TPM_RH_NULL, NULL, 0);
+		t1 = pbc_get_time();
+		*time_taken += t1 - t0;
 	}
 	/* Set up inputs for TPM2_Sign */
 	if (rc == 0) {
@@ -173,7 +180,7 @@ TPM_RC sign_helper(
 			 auth_handle, NULL, 1,
 			 TPM_RH_NULL, NULL, 0);
 		t1 = pbc_get_time();
-		*time_taken = t1 - t0;
+		*time_taken += t1 - t0;
 	}
 
 	/* Copy out signature components */
